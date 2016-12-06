@@ -6,10 +6,11 @@ REDIS=redis_buffer.o redis_index.o query.o spec.o
 UTILOBJS=util/heap.o util/logging.o util/fnv.o
 RMUTILOBJS=rmutil/vector.o rmutil/util.o rmutil/strings.o rmutil/sds.o
 LIBTRIE=trie/libtrie.a
+LIBVBYTE=dep/vbyte/libvbyte.a
 TESTS=test.o
 
 SRCDIR := $(shell pwd)
-DEPS := $(patsubst %, $(SRCDIR)/../%, $(TEXT) $(LIBTRIE) $(VARINT) $(INDEX) $(UTILOBJS) $(RMUTILOBJS)  $(REDIS) )
+DEPS := $(patsubst %, $(SRCDIR)/../%, $(TEXT) $(LIBTRIE) $(VARINT) $(INDEX) $(UTILOBJS) $(RMUTILOBJS)  $(LIBVBYTE) $(REDIS) )
 
 CC=gcc
 .SUFFIXES: .c .so .xo .o

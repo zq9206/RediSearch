@@ -3,6 +3,7 @@
 #include "forward_index.h"
 #include <sys/param.h>
 #include <math.h>
+#include "dep/vbyte/vbyte.h"
 
 inline int IR_HasNext(void *ctx) {
   IndexReader *ir = ctx;
@@ -18,18 +19,26 @@ inline int IR_GenericRead(IndexReader *ir, t_docId *docId, float *freq,
     return INDEXREAD_EOF;
   }
 
-  *docId = ReadVarint(ir->buf) + ir->lastId;
-  int len = ReadVarint(ir->buf);
 
-  int quantizedScore = ReadVarint(ir->buf);
+  static uint32_t buf[3];
+  size_t read = vbyte_uncompress_unsorted32((const uint8_t*)ir->buf->pos, buf, 3);
+  
+  BufferSkip(ir->buf, read);
+  //printf("read %zd bytes - %d, %d %d\n", read, buf[0], buf[1], buf[2]);
+
+  
+  *docId = buf[0] + ir->lastId;
+  //printf("docId: %d\n", *docId);
+  //uint32_t len = buf[1];
+  
   if (freq != NULL) {
-    *freq = (float)(quantizedScore ? quantizedScore : 1) / FREQ_QUANTIZE_FACTOR;
-    // LG_DEBUG("READ Quantized score %d, freq %f", quantizedScore, *freq);
+    *freq = (float)(buf[1] ? buf[1] : 1) / FREQ_QUANTIZE_FACTOR;
+     //LG_DEBUG("READ Quantized score %d, freq %f", buf[1], *freq);
   }
 
   BufferReadByte(ir->buf, (char *)flags);
 
-  size_t offsetsLen = ReadVarint(ir->buf);
+  uint32_t offsetsLen = buf[2];
 
   // If needed - read offset vectors
   if (offsets != NULL && !ir->singleWordMode) {
@@ -51,11 +60,14 @@ inline int IR_TryRead(IndexReader *ir, t_docId *docId, t_docId expectedDocId) {
     return INDEXREAD_EOF;
   }
 
-  *docId = ReadVarint(ir->buf) + ir->lastId;
-  int len = ReadVarint(ir->buf);
-
+   static uint32_t buf[3];
+   size_t read = vbyte_uncompress_unsorted32((const uint8_t*)ir->buf->pos, buf, 3);
+  
+  BufferSkip(ir->buf, read);
+  *docId = buf[0] + ir->lastId;
+  
   ir->lastId = *docId;
-  BufferSkip(ir->buf, len);
+  BufferSkip(ir->buf, buf[2]+1);
 
   if (*docId != expectedDocId) {
     return INDEXREAD_NOTFOUND;
@@ -320,6 +332,8 @@ void IW_GenericWrite(IndexWriter *w, t_docId docId, float freq, u_char flags,
                      VarintVector *offsets) {
   ScoreIndexWriter_AddEntry(&w->scoreWriter, freq, BufferOffset(w->bw.buf),
                             w->lastId);
+
+  
   // quantize the score to compress it to max 4 bytes
   // freq is between 0 and 1
   int quantizedScore = floorl(freq * (double)FREQ_QUANTIZE_FACTOR);
@@ -329,20 +343,18 @@ void IW_GenericWrite(IndexWriter *w, t_docId docId, float freq, u_char flags,
 
   size_t offsetsSz = VV_Size(offsets);
   // // calculate the overall len
-  size_t len =
-      varintSize(quantizedScore) + 1 + varintSize(offsetsSz) + offsetsSz;
+  
+  uint32_t buf[3] = {docId - w->lastId, quantizedScore, offsetsSz };
+  static char out[32];
 
-  // Write docId
-  WriteVarint(docId - w->lastId, &w->bw);
-  // encode len
 
-  WriteVarint(len, &w->bw);
-  // encode freq
-  WriteVarint(quantizedScore, &w->bw);
+  size_t len = vbyte_compress_unsorted32(buf, (uint8_t*)out, 3);
+  
+  w->bw.Write(w->bw.buf, out, len);
   // encode flags
   w->bw.Write(w->bw.buf, &flags, 1);
   // write offsets size
-  WriteVarint(offsetsSz, &w->bw);
+  //WriteVarint(offsetsSz, &w->bw);
   w->bw.Write(w->bw.buf, offsets->data, offsetsSz);
 
   w->lastId = docId;

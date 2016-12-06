@@ -724,7 +724,6 @@ Delete a string from a suggestion index.
    - str: the string to delete
 
 ### Returns:
-
 Integer reply: 1 if the string was found and deleted, 0 otherwise.
 */
 int SuggestDelCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
