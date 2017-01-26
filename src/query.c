@@ -419,7 +419,7 @@ QueryResult *Query_Execute(Query *query) {
     }
     IndexResult *h = pooledHit;
     IndexResult_Init(h);
-    int rc = it->Read(it->ctx, h);
+    int rc = it->ReadNext(it->ctx, h);
 
     if (rc == INDEXREAD_EOF) {
       break;

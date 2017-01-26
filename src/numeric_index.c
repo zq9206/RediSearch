@@ -445,7 +445,6 @@ size_t NR_Len(void *ctx) {
 }
 
 IndexIterator *NewNumericRangeIterator(NumericRange *nr, NumericFilter *f) {
-  IndexIterator *ret = malloc(sizeof(IndexIterator));
 
   NumericRangeIterator *it = malloc(sizeof(NumericRangeIterator));
 
@@ -459,13 +458,13 @@ IndexIterator *NewNumericRangeIterator(NumericRange *nr, NumericFilter *f) {
   it->lastDocId = 0;
   it->offset = 0;
   it->rng = nr;
-  ret->ctx = it;
+  IndexIterator *ret = NewIndexIterator(it);
 
   ret->Free = NR_Free;
   ret->Len = NR_Len;
   ret->HasNext = NR_HasNext;
   ret->LastDocId = NR_LastDocId;
-  ret->Read = NR_Read;
+  ret->ReadNext = NR_Read;
   ret->SkipTo = NR_SkipTo;
   return ret;
 }

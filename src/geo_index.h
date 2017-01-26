@@ -39,7 +39,9 @@ struct indexIterator;
 
 /* Read the next entry from the iterator, into hit *e.
   *  Returns INDEXREAD_EOF if at the end */
-int GR_Read(void *ctx, IndexResult *e);
+int GR_ReadNext(void *ctx, IndexResult *e);
+
+int GR_ReadCurrent(void *ctx, IndexResult *e);
 
 /* Skip to a docid, potentially reading the entry into hit, if the docId
  * matches */

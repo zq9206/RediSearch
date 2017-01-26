@@ -205,7 +205,7 @@ IndexIterator *NewGeoRangeIterator(GeoIndex *gi, GeoFilter *gf) {
   ret->HasNext = GR_HasNext;
   ret->LastDocId = GR_LastDocId;
   ret->Len = GR_Len;
-  ret->Read = GR_Read;
+  ret->ReadNext = GR_Read;
   ret->SkipTo = GR_SkipTo;
   return ret;
 }

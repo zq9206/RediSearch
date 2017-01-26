@@ -8,6 +8,7 @@
 #include "skip_index.h"
 #include "types.h"
 #include "util/logging.h"
+#include "util/heap.h"
 #include "varint.h"
 #include <ctype.h>
 #include <stdio.h>
@@ -63,6 +64,7 @@ typedef struct indexReader {
   int useScoreIndex;
   u_char fieldMask;
 
+  IndexRecord currentRecord;
   IndexFlags flags;
   size_t len;
 
@@ -98,7 +100,9 @@ typedef struct indexIterator {
   void *ctx;
   /* Read the next entry from the iterator, into hit *e.
   *  Returns INDEXREAD_EOF if at the end */
-  int (*Read)(void *ctx, IndexResult *e);
+  int (*ReadNext)(void *ctx, IndexResult *e);
+
+  int (*ReadCurrent)(void *ctx, IndexResult *e);
 
   /* Skip to a docid, potentially reading the entry into hit, if the docId
    * matches */
@@ -113,10 +117,15 @@ typedef struct indexIterator {
   /* release the iterator's context and free everything needed */
   void (*Free)(struct indexIterator *self);
 
+  size_t (*EstimateCardinality)(void *ctx);
+
   /* Return the number of results in this iterator. Used by the query execution
    * on the top iterator */
   size_t (*Len)(void *ctx);
 } IndexIterator;
+
+/* Basic function that just allocates an iterator and zeros all its fields */
+IndexIterator *NewIndexIterator(void *ctx);
 
 /* Free a union iterator */
 void UnionIterator_Free(IndexIterator *it);
@@ -148,12 +157,10 @@ int IR_GenericRead(IndexReader *ir, t_docId *docId, float *freq, u_char *flags,
 int IR_TryRead(IndexReader *ir, t_docId *docId, t_docId expectedDocId);
 
 /* Read an entry from an inverted index into IndexResult */
-int IR_Read(void *ctx, IndexResult *e);
+int IR_ReadNext(void *ctx, IndexResult *e);
 
-/* Move to the next entry in an inverted index, without reading the whole entry
- */
-int IR_Next(void *ctx);
-
+int IR_ReadCurrent(void *ctx, IndexResult *e);
+size_t IR_EstimateCardinality(void *ctx);
 /* Can we read more from an index reader? */
 int IR_HasNext(void *ctx);
 
@@ -161,6 +168,7 @@ int IR_HasNext(void *ctx);
  * there */
 int IR_SkipTo(void *ctx, u_int32_t docId, IndexResult *hit);
 
+size_t IR_EstimateCardinality(void *ctx);
 /* The number of docs in an inverted index entry */
 size_t IR_NumDocs(void *ctx);
 
@@ -201,12 +209,12 @@ IndexWriter *NewIndexWriterBuf(BufferWriter bw, BufferWriter skipIndexWriter,
 
 /* UnionContext is used during the running of a union iterator */
 typedef struct {
-  IndexIterator **its;
+  heap_t *iters;
   int num;
   int pos;
   size_t len;
-  t_docId minDocId;
-  IndexResult *currentHits;
+  IndexResult current;
+  t_docId lastDocId;
   DocTable *docTable;
   int atEnd;
 } UnionContext;
@@ -216,8 +224,9 @@ It will return each document of the underlying iterators, exactly once */
 IndexIterator *NewUnionIterator(IndexIterator **its, int num, DocTable *t);
 
 int UI_SkipTo(void *ctx, u_int32_t docId, IndexResult *hit);
-int UI_Next(void *ctx);
-int UI_Read(void *ctx, IndexResult *hit);
+int UI_ReadNext(void *ctx, IndexResult *hit);
+int UI_ReadCurrent(void *ctx, IndexResult *hit);
+size_t UI_EstimateCardinality(void *ctx);
 int UI_HasNext(void *ctx);
 size_t UI_Len(void *ctx);
 t_docId UI_LastDocId(void *ctx);
@@ -230,7 +239,7 @@ typedef struct {
   size_t len;
   int exact;
   t_docId lastDocId;
-  IndexResult *currentHits;
+  IndexResult current;
   DocTable *docTable;
   u_char fieldMask;
   int atEnd;
@@ -244,6 +253,8 @@ IndexIterator *NewIntersecIterator(IndexIterator **its, int num, int exact, DocT
 int II_SkipTo(void *ctx, u_int32_t docId, IndexResult *hit);
 int II_Next(void *ctx);
 int II_Read(void *ctx, IndexResult *hit);
+int II_ReadCurrent(void *ctx, IndexResult *hit);
+
 int II_HasNext(void *ctx);
 size_t II_Len(void *ctx);
 t_docId II_LastDocId(void *ctx);
