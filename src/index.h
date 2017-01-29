@@ -209,7 +209,7 @@ IndexWriter *NewIndexWriterBuf(BufferWriter bw, BufferWriter skipIndexWriter,
 
 /* UnionContext is used during the running of a union iterator */
 typedef struct {
-  heap_t *iters;
+  IndexIterator **iters;
   int num;
   int pos;
   size_t len;
