@@ -139,7 +139,7 @@ int IR_ReadNext(void *ctx, IndexResult *e) {
       }
 
       ++ir->len;
-
+      // printf("IR %s Read docId %d, rc %d\n", ir->term->str, e->docId, rc);
       IndexResult_PutRecord(e, &ir->currentRecord);
       return rc;
     }
@@ -460,6 +460,7 @@ IndexIterator *NewUnionIterator(IndexIterator **its, int num, DocTable *dt) {
   ctx->current = NewIndexResult();
   ctx->tmp = NewIndexResult();
   ctx->lastDocId = 0;
+  ctx->nextDocId = 0;
   ctx->pos = 0;
   ctx->len = 0;
   // bind the union iterator calls
@@ -497,60 +498,70 @@ size_t UI_EstimateCardinality(void *ctx) {
 
 int UI_ReadNext(void *ctx, IndexResult *hit) {
   UnionContext *ui = ctx;
+  int sz = heap_count(ui->iters);
   // nothing to do
-  if (ui->num == 0 || ui->atEnd) {
+  if (ui->atEnd == 1 || ui->num == 0 || sz == 0) {
     ui->atEnd = 1;
     return INDEXREAD_EOF;
   }
 
-  int n = 0;
-  t_docId docId = 0;
-
+  int n = 0, rc = 0;
   ui->current.numRecords = 0;
+  t_docId minDocId = __UINT32_MAX__;
+
   do {
     // read the smallest id iterator
-    IndexIterator *it = heap_poll(ui->iters);
-
-    // if the smallest iter is equal or larger than the last read,
-    // we're done
-    // printf("docId now %d, selected it %p, lastDocId: %d\n", docId, it,
-    //        it ? it->LastDocId(it->ctx) : -1);
-
-    if (!it || (it->LastDocId(it->ctx) > docId && docId)) {
-      if (it) heap_offerx(ui->iters, it);
+    IndexIterator *it = heap_peek(ui->iters);
+    if (!it) {
       break;
     }
+    // if the smallest iter is equal or larger than the last read, we're done
+    if (n > 0 && it->LastDocId(it->ctx) > ui->lastDocId) {
+      break;
+    }
+    it = heap_poll(ui->iters);
 
     ui->tmp.numRecords = 0;
-    int rc;
-    if (!docId && ui->lastDocId < it->LastDocId(it->ctx)) {
-      rc = it->ReadCurrent(it->ctx, &ui->tmp);
-    } else
-      rc = it->ReadNext(it->ctx, &ui->tmp);
 
-    // printf("Read from it %p %d: %d\n", it, ui->tmp.docId, rc);
+    // this means it's an iterator we've left from last time
+    if (n == 0 && ui->nextDocId && it->LastDocId(it->ctx) == ui->nextDocId) {
+      rc = it->ReadCurrent(it->ctx, &ui->tmp);
+    } else {
+      rc = it->ReadNext(it->ctx, &ui->tmp);
+    }
+
     if (rc == INDEXREAD_OK) {
+
       // read one more record to the same docId already read
-      if (docId == 0 || ui->tmp.docId == docId) {
+      if (n == 0 || ui->tmp.docId == ui->lastDocId) {
+        ++n;
         IndexResult_Add(&ui->current, &ui->tmp);
-        docId = ui->tmp.docId;
-        // we have a docId lower than current - we need to switch current
-      } else if (ui->tmp.docId < docId) {
+
+        ui->lastDocId = ui->tmp.docId;
+      } else if (ui->tmp.docId < ui->lastDocId) {
+        n = 1;
+        minDocId = __UINT32_MAX__;
         ui->current.numRecords = 0;
         IndexResult_Add(&ui->current, &ui->tmp);
-        docId = ui->tmp.docId;
+        ui->lastDocId = ui->tmp.docId;
       }
     }
+
     if (rc != INDEXREAD_EOF) {
+      minDocId = MIN(minDocId, it->LastDocId(it->ctx));
       heap_offerx(ui->iters, it);
     }
 
-  } while (heap_count(ui->iters) > 0);
+  } while (heap_count(ui->iters));
 
-  if (ui->current.numRecords > 0) {
+  IndexIterator *mit = heap_peek(ui->iters);
+  if (mit) {
+    ui->nextDocId = mit->LastDocId(mit->ctx);
+  }
+  if (n > 0) {
     ui->len++;
-    ui->lastDocId = ui->current.docId;
-    if (hit) IndexResult_Add(hit, &ui->current);
+    // ui->lastDocId = ui->current.docId;
+    IndexResult_Add(hit, &ui->current);
     // printf("returning OK docId %d!\n", ui->lastDocId);
     return INDEXREAD_OK;
   } else {  // couldn't read a single record
@@ -585,6 +596,7 @@ int UI_SkipTo(void *ctx, u_int32_t docId, IndexResult *hit) {
 
   int sz = heap_count(ui->iters);
   if (sz == 0 || ui->atEnd) {
+    ui->atEnd = 1;
     return INDEXREAD_EOF;
   }
 
@@ -599,7 +611,7 @@ int UI_SkipTo(void *ctx, u_int32_t docId, IndexResult *hit) {
     IndexIterator *it = heap_poll(ui->iters);
 
     if (it->LastDocId(it->ctx) == docId) {
-      if (it->ReadCurrent(it->ctx, &ui->current) == INDEXREAD_OK) {
+      if (it->ReadCurrent(it->ctx, hit) == INDEXREAD_OK) {
         n++;
       }
     } else if (it->LastDocId(it->ctx) < docId) {
@@ -610,7 +622,7 @@ int UI_SkipTo(void *ctx, u_int32_t docId, IndexResult *hit) {
       if (rc == INDEXREAD_EOF) continue;
 
       if (rc == INDEXREAD_OK) {
-        IndexResult_Add(&ui->current, &ui->tmp);
+        IndexResult_Add(hit, &ui->tmp);
         n++;
       }
     }
@@ -634,13 +646,11 @@ int UI_SkipTo(void *ctx, u_int32_t docId, IndexResult *hit) {
   ui->lastDocId = minIt->LastDocId(minIt->ctx);
 
   if (n > 0) {
-    IndexResult_Add(hit, &ui->current);
     return INDEXREAD_OK;
   }
 
   IndexResult_Add(&ui->current, &ui->tmp);
-
-  // printf("UI %p skipped to docId %d NOT FOUND, minDocId now %d\n", ui, docId, ui->minDocId);
+  // printf("UI %p skipped to docId %d NOT FOUND, lastDocId now %d\n", ui, docId, ui->lastDocId);
   return INDEXREAD_NOTFOUND;
 }
 

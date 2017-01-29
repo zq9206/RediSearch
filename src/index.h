@@ -217,6 +217,7 @@ typedef struct {
   IndexResult tmp;
 
   t_docId lastDocId;
+  t_docId nextDocId;
   DocTable *docTable;
   int atEnd;
 } UnionContext;

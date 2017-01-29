@@ -81,7 +81,7 @@ int IndexResult_MinOffsetDelta(IndexResult *r) {
 
   int dist = 0;
   int num = r->numRecords;
-
+  // printf("%d\n", num);
   for (int i = 1; i < num; i++) {
     BufferSeek(&r->records[i - 1].offsets, 0);
     BufferSeek(&r->records[i].offsets, 0);
