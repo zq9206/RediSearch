@@ -139,7 +139,7 @@ int IR_ReadNext(void *ctx, IndexResult *e) {
     IndexResult_PutRecord(e, &ir->currentRecord);
   }
 
-  printf("IR %s Read docId %d, rc %d\n", ir->term->str, e->docId, rc);
+  // printf("IR %s Read docId %d, rc %d\n", ir->term->str, e->docId, rc);
   return rc;
 }
 
@@ -170,13 +170,20 @@ int IR_SkipTo(void *ctx, u_int32_t docId, IndexResult *hit) {
   if (docId > ir->header.lastId) {
     return INDEXREAD_EOF;
   }
+  if (docId == ir->lastId) {
+    return IR_ReadCurrent(ctx, hit);
+  }
 
   /* try to find an entry in the skip index if possible */
   SkipEntry *ent = SkipIndex_Find(ir->skipIdx, docId, &ir->skipIdxPos);
+  // printf("ent for %d: %d\n", docId, ent ? ent->docId : -1);
   /* Seek to the correct location if we found a skip index entry */
   if (ent != NULL && ent->offset > BufferOffset(ir->buf)) {
     IR_Seek(ir, ent->offset, ent->docId);
   }
+  // if (!ent && ir->lastId > docId) {
+  //   return INDEXREAD_NOTFOUND;
+  // }
 
   int rc;
   t_docId lastId = ir->lastId, readId = 0;
@@ -446,6 +453,7 @@ IndexIterator *NewUnionIterator(IndexIterator **its, int num, DocTable *dt) {
   ctx->docTable = dt;
   ctx->atEnd = 0;
   ctx->current = NewIndexResult();
+  ctx->tmp = NewIndexResult();
   ctx->lastDocId = 0;
   ctx->pos = 0;
   ctx->len = 0;
@@ -492,7 +500,7 @@ int UI_ReadNext(void *ctx, IndexResult *hit) {
 
   int n = 0;
   t_docId docId = 0;
-  IndexResult tmp = NewIndexResult();  // TODO: move this to be part of ui to avoid allocations
+
   ui->current.numRecords = 0;
   do {
     // read the smallest id iterator
@@ -500,32 +508,32 @@ int UI_ReadNext(void *ctx, IndexResult *hit) {
 
     // if the smallest iter is equal or larger than the last read,
     // we're done
-    printf("docId now %d, selected it %p, lastDocId: %d\n", docId, it,
-           it ? it->LastDocId(it->ctx) : -1);
+    // printf("docId now %d, selected it %p, lastDocId: %d\n", docId, it,
+    //        it ? it->LastDocId(it->ctx) : -1);
 
     if (!it || (it->LastDocId(it->ctx) > docId && docId)) {
       if (it) heap_offerx(ui->iters, it);
       break;
     }
 
-    tmp.numRecords = 0;
+    ui->tmp.numRecords = 0;
     int rc;
     if (!docId && ui->lastDocId < it->LastDocId(it->ctx)) {
-      rc = it->ReadCurrent(it->ctx, &tmp);
+      rc = it->ReadCurrent(it->ctx, &ui->tmp);
     } else
-      rc = it->ReadNext(it->ctx, &tmp);
+      rc = it->ReadNext(it->ctx, &ui->tmp);
 
-    printf("Read from it %p %d: %d\n", it, tmp.docId, rc);
+    // printf("Read from it %p %d: %d\n", it, ui->tmp.docId, rc);
     if (rc == INDEXREAD_OK) {
       // read one more record to the same docId already read
-      if (docId == 0 || tmp.docId == docId) {
-        IndexResult_Add(&ui->current, &tmp);
-        docId = tmp.docId;
+      if (docId == 0 || ui->tmp.docId == docId) {
+        IndexResult_Add(&ui->current, &ui->tmp);
+        docId = ui->tmp.docId;
         // we have a docId lower than current - we need to switch current
-      } else if (tmp.docId < docId) {
+      } else if (ui->tmp.docId < docId) {
         ui->current.numRecords = 0;
-        IndexResult_Add(&ui->current, &tmp);
-        docId = tmp.docId;
+        IndexResult_Add(&ui->current, &ui->tmp);
+        docId = ui->tmp.docId;
       }
     }
     if (rc != INDEXREAD_EOF) {
@@ -538,10 +546,10 @@ int UI_ReadNext(void *ctx, IndexResult *hit) {
     ui->len++;
     ui->lastDocId = ui->current.docId;
     if (hit) IndexResult_Add(hit, &ui->current);
-    printf("returning OK docId %d!\n", ui->lastDocId);
+    // printf("returning OK docId %d!\n", ui->lastDocId);
     return INDEXREAD_OK;
   } else {  // couldn't read a single record
-    printf("Returning EOF\n");
+    // printf("Returning EOF\n");
     ui->atEnd = 1;
     return INDEXREAD_EOF;
   }
@@ -580,7 +588,6 @@ int UI_SkipTo(void *ctx, u_int32_t docId, IndexResult *hit) {
   int n = 0;
   int rc = INDEXREAD_EOF;
 
-  IndexResult tmp = NewIndexResult();
   ui->current.numRecords = 0;
   // skip all iterators to docId
   for (int i = 0; i < sz; i++) {
@@ -592,13 +599,13 @@ int UI_SkipTo(void *ctx, u_int32_t docId, IndexResult *hit) {
       }
     } else if (it->LastDocId(it->ctx) < docId) {
 
-      tmp.numRecords = 0;
-      rc = it->SkipTo(it->ctx, docId, &tmp);
-      printf("read %d, rc %d\n", tmp.docId, rc);
+      ui->tmp.numRecords = 0;
+      rc = it->SkipTo(it->ctx, docId, &ui->tmp);
+      // printf("read %d, rc %d\n", ui->tmp.docId, rc);
       if (rc == INDEXREAD_EOF) continue;
 
       if (rc == INDEXREAD_OK) {
-        IndexResult_Add(&ui->current, &tmp);
+        IndexResult_Add(&ui->current, &ui->tmp);
         n++;
       }
     }
@@ -626,8 +633,7 @@ int UI_SkipTo(void *ctx, u_int32_t docId, IndexResult *hit) {
     return INDEXREAD_OK;
   }
 
-  IndexResult_Add(&ui->current, &tmp);
-  IndexResult_Free(&tmp);
+  IndexResult_Add(&ui->current, &ui->tmp);
 
   // printf("UI %p skipped to docId %d NOT FOUND, minDocId now %d\n", ui, docId, ui->minDocId);
   return INDEXREAD_NOTFOUND;
@@ -643,6 +649,7 @@ void UnionIterator_Free(IndexIterator *it) {
   }
   heap_free(ui->iters);
   IndexResult_Free(&ui->current);
+  IndexResult_Free(&ui->tmp);
   free(ui);
   free(it);
 }
@@ -670,6 +677,7 @@ void IntersectIterator_Free(IndexIterator *it) {
   }
 
   IndexResult_Free(&ui->current);
+  IndexResult_Free(&ui->tmp);
   free(ui->its);
   free(it->ctx);
   free(it);
@@ -687,6 +695,7 @@ IndexIterator *NewIntersecIterator(IndexIterator **its, int num, int exact, DocT
   ctx->fieldMask = fieldMask;
   ctx->atEnd = 0;
   ctx->current = NewIndexResult();
+  ctx->tmp = NewIndexResult();
   ctx->docTable = dt;
 
   // bind the iterator calls
@@ -729,22 +738,21 @@ int II_SkipTo(void *ctx, u_int32_t docId, IndexResult *hit) {
 
   int rc = INDEXREAD_EOF;
 
-  IndexResult tmp = NewIndexResult();
   ic->current.numRecords = 0;
   // skip all iterators to docId
   for (int i = 0; i < ic->num; i++) {
     IndexIterator *it = ic->its[i];
     rc = INDEXREAD_OK;
-    printf("II: it %d, last docId %d, our own last docId %d\n", i, it->LastDocId(it->ctx),
-           ic->lastDocId);
+    // printf("II: it %d, last docId %d, our own last docId %d\n", i, it->LastDocId(it->ctx),
+    //        ic->lastDocId);
 
     // only read if we're not already at the final position
     if (it->LastDocId(it->ctx) != ic->lastDocId || ic->lastDocId == 0) {
-      tmp.numRecords = 0;
-      rc = it->SkipTo(it->ctx, docId, &tmp);
+      ic->tmp.numRecords = 0;
+      rc = it->SkipTo(it->ctx, docId, &ic->tmp);
     } else {
-      printf("reading current...\n");
-      rc = it->ReadCurrent(it->ctx, &tmp);
+      // printf("reading current...\n");
+      rc = it->ReadCurrent(it->ctx, &ic->tmp);
     }
 
     if (rc == INDEXREAD_EOF) {
@@ -754,7 +762,7 @@ int II_SkipTo(void *ctx, u_int32_t docId, IndexResult *hit) {
     } else if (rc == INDEXREAD_OK) {
       // YAY! found!
       ic->lastDocId = docId;
-      IndexResult_Add(&ic->current, &tmp);
+      IndexResult_Add(&ic->current, &ic->tmp);
       ++nfound;
     } else if (it->LastDocId(it->ctx) > ic->lastDocId) {
       ic->lastDocId = it->LastDocId(it->ctx);
@@ -781,64 +789,44 @@ int II_Read(void *ctx, IndexResult *hit) {
 
   int nh = 0;
   int i = 0;
-  IndexResult tmp = NewIndexResult();
+  int tr = 0;
+
   do {
+    //    tr++;
     nh = 0;
     for (i = 0; i < ic->num; i++) {
 
       IndexIterator *it = ic->its[i];
       if (!it) goto eof;
 
-      printf("II READ: it %d, last docId %d, our own last docId %d\n", i, it->LastDocId(it->ctx),
-             ic->lastDocId);
+      // printf("Try %d II READ: it %d, last docId %d, our own last docId %d\n", tr, i,
+      //        it->LastDocId(it->ctx), ic->lastDocId);
 
       int rc = INDEXREAD_OK;
-      tmp.numRecords = 0;
-      if (it->LastDocId(it->ctx) != ic->lastDocId || ic->lastDocId == 0) {
-        rc = it->SkipTo(it->ctx, ic->lastDocId, &tmp);
+      ic->tmp.numRecords = 0;
+      if (i == 0) {
+        rc = it->ReadNext(it->ctx, &ic->tmp);
       } else {
-        printf("II reading current\n");
-        rc = it->ReadCurrent(it->ctx, &tmp);
+        // printf("II %d skipping to %d\n", i, ic->lastDocId);
+        rc = it->SkipTo(it->ctx, ic->lastDocId, &ic->tmp);
       }
-      printf("read docId %d, rc %d\n", it->LastDocId(it->ctx), rc);
+      // printf("read docId %d, rc %d\n", it->LastDocId(it->ctx), rc);
 
       if (rc == INDEXREAD_EOF) goto eof;
+      if (rc == INDEXREAD_NOTFOUND) break;
 
-      if (i > 0 && it->LastDocId(it->ctx) > ic->lastDocId) {
-        ic->lastDocId = it->LastDocId(it->ctx);
-        break;
-      }
-      if (rc == INDEXREAD_OK) {
-        ic->lastDocId = it->LastDocId(it->ctx);
-        IndexResult_Add(&ic->current, &tmp);
-        ++nh;
-      } else {
-        ic->lastDocId++;
-      }
+      ic->lastDocId = it->LastDocId(it->ctx);
+      IndexResult_Add(&ic->current, &ic->tmp);
+      ++nh;
     }
 
     if (nh == ic->num) {
-      // printf("II %p HIT @ %d\n", ic, ic->currentHits[0].docId);
+      // printf("II %p HIT @ %d\n", ic, ic->lastDocId);
       // sum up all hits
-      if (hit != NULL) {
-        // hit->numRecords = 0;
-        IndexResult_Add(hit, &ic->current);
-      }
-    }
 
-    // advance to the next iterator
-    ic->current.numRecords = 0;
-    if (ic->its[0]->ReadNext(ic->its[0]->ctx, &ic->current) == INDEXREAD_EOF) {
-      // if we're at the end we don't want to return EOF right now,
-      // but advancing docId makes sure we'll read the first iterator again
-      // in the next round
-      ic->lastDocId++;
-    } else {
-      if (ic->current.docId > ic->lastDocId) {
-        ic->lastDocId = ic->current.docId;
-      } else {
-        ic->lastDocId++;
-      }
+      // hit->numRecords = 0;
+      // ic->current.numRecords = 0;
+      IndexResult_Add(hit, &ic->current);
     }
 
     if ((hit->flags & ic->fieldMask) == 0) {
@@ -847,7 +835,7 @@ int II_Read(void *ctx, IndexResult *hit) {
     }
 
     // In exact mode, make sure the minimal distance is the number of words
-    if (ic->exact && hit != NULL) {
+    if (ic->exact) {
       int md = IndexResult_MinOffsetDelta(hit);
 
       if (md > ic->num - 1) {
@@ -857,10 +845,8 @@ int II_Read(void *ctx, IndexResult *hit) {
 
     ic->len++;
     return INDEXREAD_OK;
-
   } while (1);
 eof:
-  IndexResult_Free(&tmp);
   ic->atEnd = 1;
   return INDEXREAD_EOF;
 }

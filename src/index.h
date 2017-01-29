@@ -214,6 +214,8 @@ typedef struct {
   int pos;
   size_t len;
   IndexResult current;
+  IndexResult tmp;
+
   t_docId lastDocId;
   DocTable *docTable;
   int atEnd;
@@ -240,6 +242,8 @@ typedef struct {
   int exact;
   t_docId lastDocId;
   IndexResult current;
+  IndexResult tmp;
+
   DocTable *docTable;
   u_char fieldMask;
   int atEnd;
