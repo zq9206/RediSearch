@@ -91,11 +91,14 @@ inline int IR_TryRead(IndexReader *ir, t_docId *docId, t_docId expectedDocId) {
 //   // LG_DEBUG("FREQ: %f  IDF: %.04f, TFIDF: %f",freq, idf, freq*idf);
 //   return freq * idf;
 // }
-
 int IR_ReadCurrent(void *ctx, IndexResult *e) {
   IndexReader *ir = ctx;
 
   if (ir->lastId == 0) {
+    return INDEXREAD_NOTFOUND;
+  }
+
+  if ((ir->currentRecord.flags & ir->fieldMask) == 0) {
     return INDEXREAD_NOTFOUND;
   }
   IndexResult_PutRecord(e, &ir->currentRecord);
@@ -124,21 +127,23 @@ int IR_ReadNext(void *ctx, IndexResult *e) {
   if (!ir->singleWordMode) {
     offsets = &ir->currentRecord.offsets;
   }
+  int rc;
+  do {
+    rc = IR_GenericRead(ir, &ir->currentRecord.docId, &ir->currentRecord.tf,
+                        &ir->currentRecord.flags, offsets);
 
-  int rc = IR_GenericRead(ir, &ir->currentRecord.docId, &ir->currentRecord.tf,
-                          &ir->currentRecord.flags, offsets);
+    // add the record to the current result
+    if (rc == INDEXREAD_OK) {
+      if ((ir->currentRecord.flags & ir->fieldMask) == 0) {
+        continue;
+      }
 
-  // add the record to the current result
-  if (rc == INDEXREAD_OK) {
-    if (!(ir->currentRecord.flags & ir->fieldMask)) {
-      return INDEXREAD_NOTFOUND;
+      ++ir->len;
+
+      IndexResult_PutRecord(e, &ir->currentRecord);
+      return rc;
     }
-
-    ++ir->len;
-
-    IndexResult_PutRecord(e, &ir->currentRecord);
-  }
-
+  } while (rc != INDEXREAD_EOF);
   // printf("IR %s Read docId %d, rc %d\n", ir->term->str, e->docId, rc);
   return rc;
 }
@@ -181,9 +186,9 @@ int IR_SkipTo(void *ctx, u_int32_t docId, IndexResult *hit) {
   if (ent != NULL && ent->offset > BufferOffset(ir->buf)) {
     IR_Seek(ir, ent->offset, ent->docId);
   }
-  // if (!ent && ir->lastId > docId) {
-  //   return INDEXREAD_NOTFOUND;
-  // }
+  if (!ent && ir->lastId > docId) {
+    return INDEXREAD_NOTFOUND;
+  }
 
   int rc;
   t_docId lastId = ir->lastId, readId = 0;
@@ -790,6 +795,7 @@ int II_Read(void *ctx, IndexResult *hit) {
   int nh = 0;
   int i = 0;
   int tr = 0;
+  ic->current.numRecords = 0;
 
   do {
     //    tr++;
