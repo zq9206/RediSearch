@@ -1,20 +1,19 @@
 #ifndef __FORWARD_INDEX_H__
 #define __FORWARD_INDEX_H__
+#include "document.h"
+#include "tokenize.h"
 #include "types.h"
 #include "util/khash.h"
 #include "varint.h"
-#include "tokenize.h"
-#include "document.h"
 
 typedef struct {
-    const char *term;
-    size_t len;
-    t_docId docId;
-    float freq;
-    float docScore;
-    u_char flags;
-    VarintVectorWriter *vw;
-    int stringFreeable;
+  const char *term;
+  size_t len;
+  float freq;
+  float docScore;
+  u_char flags;
+  VarintVectorWriter *vw;
+  int stringFreeable;
 } ForwardIndexEntry;
 
 KHASH_MAP_INIT_INT(32, ForwardIndexEntry *)
@@ -23,19 +22,18 @@ KHASH_MAP_INIT_INT(32, ForwardIndexEntry *)
 #define FREQ_QUANTIZE_FACTOR 0xFFFF
 
 typedef struct {
-    khash_t(32) * hits;
+  khash_t(32) * hits;
 
-    t_docId docId;
-    float totalFreq;
-    float maxFreq;
-    float docScore;
-    int uniqueTokens;
-    Stemmer *stemmer;
+  float totalFreq;
+  float maxFreq;
+  float docScore;
+  int numTokens;
+  Stemmer *stemmer;
 } ForwardIndex;
 
 typedef struct {
-    ForwardIndex *idx;
-    khiter_t k;
+  ForwardIndex *idx;
+  khiter_t k;
 } ForwardIndexIterator;
 
 int forwardIndexTokenFunc(void *ctx, Token t);

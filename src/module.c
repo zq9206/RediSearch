@@ -22,11 +22,31 @@
 #include <string.h>
 #include <time.h>
 
+void tokenizeDocument(IndexSpec *sp, Document doc, ForwardIndex *idx) {
+  int totalTokens = 0;
+
+  for (int i = 0; i < doc.numFields; i++) {
+
+    size_t len;
+    const char *f = RedisModule_StringPtrLen(doc.fields[i].name, &len);
+    const char *c = RedisModule_StringPtrLen(doc.fields[i].text, NULL);
+
+    FieldSpec *fs = IndexSpec_GetField(sp, f, len);
+    if (fs == NULL) {
+      LG_DEBUG("Skipping field %s not in index!", f);
+      continue;
+    }
+
+    if (fs->type == F_FULLTEXT) {
+      totalTokens =
+          tokenize(c, fs->weight, fs->id, idx, forwardIndexTokenFunc, idx->stemmer, totalTokens);
+    }
+  }
+}
 /* Add a parsed document to the index. If replace is set, we will add it be deleting an older
  * version of it first */
-int AddDocument(RedisSearchCtx *ctx, Document doc, const char **errorString, int nosave,
-                int replace) {
-  int isnew = 1;
+int indexDocument(RedisSearchCtx *ctx, ForwardIndex *idx, Document doc, const char **errorString,
+                  int nosave, int replace) {
 
   // if we're in replace mode, first we need to try and delete the older version of the document
   if (replace) {
@@ -38,20 +58,10 @@ int AddDocument(RedisSearchCtx *ctx, Document doc, const char **errorString, int
 
   // Make sure the document is not already in the index - it needs to be
   // incremental!
-  if (doc.docId == 0 || !isnew) {
+  if (doc.docId == 0) {
     *errorString = "Document already in index";
     return REDISMODULE_ERR;
   }
-
-  // first save the document as hash
-  if (nosave == 0 && Redis_SaveDocument(ctx, &doc) != REDISMODULE_OK) {
-    *errorString = "Could not save document data";
-    return REDISMODULE_ERR;
-  }
-
-  ForwardIndex *idx = NewForwardIndex(doc);
-
-  int totalTokens = 0;
 
   for (int i = 0; i < doc.numFields; i++) {
     // printf("Tokenizing %s: %s\n",
@@ -64,15 +74,12 @@ int AddDocument(RedisSearchCtx *ctx, Document doc, const char **errorString, int
 
     FieldSpec *fs = IndexSpec_GetField(ctx->spec, f, len);
     if (fs == NULL) {
-      LG_DEBUG("Skipping field %s not in index!", c);
+      LG_DEBUG("Skipping field %s not in index!", f);
       continue;
     }
 
     switch (fs->type) {
-      case F_FULLTEXT:
-        totalTokens =
-            tokenize(c, fs->weight, fs->id, idx, forwardIndexTokenFunc, idx->stemmer, totalTokens);
-        break;
+
       case F_NUMERIC: {
         double score;
 
@@ -105,6 +112,8 @@ int AddDocument(RedisSearchCtx *ctx, Document doc, const char **errorString, int
 
         break;
 
+        /* For fulltext fields we do nothing at this stage */
+        case F_FULLTEXT:
         default:
           break;
       }
@@ -112,22 +121,20 @@ int AddDocument(RedisSearchCtx *ctx, Document doc, const char **errorString, int
   }
 
   // printf("totaltokens :%d\n", totalTokens);
-  if (totalTokens > 0) {
+  if (idx->numTokens > 0) {
     ForwardIndexIterator it = ForwardIndex_Iterate(idx);
 
     ForwardIndexEntry *entry = ForwardIndexIterator_Next(&it);
     while (entry != NULL) {
-      LG_DEBUG("doc %d entry: %.*s freq %f\n", idx->docId, (int)entry->len, entry->term,
-               entry->freq);
       ForwardIndex_NormalizeFreq(idx, entry);
-      InvertedIndex *idx = Redis_OpenInvertedIndex(ctx, entry->term, entry->len, 1);
+      InvertedIndex *invidx = Redis_OpenInvertedIndex(ctx, entry->term, entry->len, 1);
       // IndexWriter *w = Redis_OpenWriter(ctx, entry->term, entry->len);
-      int isNew = idx->lastId == 0;
+      int isNew = invidx->lastId == 0;
 
       // size_t cap = isNew ? 0 : w->bw.buf->cap;
       // size_t skcap = isNew ? 0 : w->skipIndexWriter.buf->cap;
       // size_t sccap = isNew ? 0 : w->scoreWriter.bw.buf->cap;
-      size_t sz = InvertedIndex_WriteEntry(idx, entry);
+      size_t sz = InvertedIndex_WriteEntry(invidx, doc.docId, entry);
 
       /*******************************************
       * update stats for the index
@@ -167,6 +174,31 @@ error:
   return REDISMODULE_ERR;
 }
 
+int AddDocument(RedisSearchCtx *ctx, Document doc, const char **errorString, int nosave,
+                int replace) {
+
+  // check if the document is in the index already
+  if (DocTable_GetId(&ctx->spec->docs, RedisModule_StringPtrLen(doc.docKey, NULL)) != 0 &&
+      !replace) {
+    *errorString = "Document already in index";
+    return REDISMODULE_ERR;
+  }
+
+  // first save the document as hash
+  if (nosave == 0 && Redis_SaveDocument(ctx, &doc) != REDISMODULE_OK) {
+    *errorString = "Could not save document data";
+    return REDISMODULE_ERR;
+  }
+
+  // first tokenize the document
+  ForwardIndex *idx = NewForwardIndex(doc);
+
+  // TODO: move this to a threadpool
+  tokenizeDocument(ctx->spec, doc, idx);
+
+  // do the actual indexing - this is where redis should return to
+  return indexDocument(ctx, idx, doc, errorString, nosave, replace);
+}
 /*
 ## FT.ADD <index> <docId> <score> [NOSAVE] [REPLACE] [LANGUAGE <lang>] [PAYLOAD {payload}] FIELDS
 <field>

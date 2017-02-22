@@ -11,9 +11,8 @@ ForwardIndex *NewForwardIndex(Document doc) {
 
   idx->hits = kh_init(32);
   idx->docScore = doc.score;
-  idx->docId = doc.docId;
   idx->totalFreq = 0;
-  idx->uniqueTokens = 0;
+  idx->numTokens = 0;
   idx->maxFreq = 0;
   idx->stemmer = NewStemmer(SnowballStemmer, doc.language);
 
@@ -60,8 +59,7 @@ int forwardIndexTokenFunc(void *ctx, Token t) {
   if (k == kh_end(idx->hits)) {              // k will be equal to kh_end if key not present
     /// LG_DEBUG("new entry %.*s\n", t.len, t.s);
     h = rm_calloc(1, sizeof(ForwardIndexEntry));
-    h->docId = idx->docId;
-    h->flags = 0;
+
     h->term = t.s;
     h->len = t.len;
     h->stringFreeable = t.stringFreeable;
@@ -85,7 +83,7 @@ int forwardIndexTokenFunc(void *ctx, Token t) {
   }
   h->freq += score;
   idx->totalFreq += (float)t.score;
-
+  idx->numTokens++;
   idx->maxFreq = MAX(h->freq, idx->maxFreq);
   VVW_Write(h->vw, t.pos);
 

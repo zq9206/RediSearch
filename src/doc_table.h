@@ -1,10 +1,10 @@
 #ifndef __DOC_TABLE_H__
 #define __DOC_TABLE_H__
+#include "redismodule.h"
+#include "types.h"
+#include "util/triemap.h"
 #include <stdlib.h>
 #include <string.h>
-#include "types.h"
-#include "redismodule.h"
-#include "util/triemap.h"
 
 typedef struct {
   char *data;
@@ -84,6 +84,9 @@ t_docId DocTable_Put(DocTable *t, const char *key, double score, u_char flags, c
 
 /* Get the "real" external key for an incremental id. Returns NULL if docId is not in the table. */
 const char *DocTable_GetKey(DocTable *t, t_docId docId);
+
+/* Get document id by string key, or 0 if it is not in the table */
+t_docId DocTable_GetId(DocTable *t, const char *key);
 
 /* Get the score for a document from the table. Returns 0 if docId is not in the table. */
 float DocTable_GetScore(DocTable *t, t_docId docId);

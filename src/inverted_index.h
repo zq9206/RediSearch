@@ -59,7 +59,7 @@ typedef struct indexReadCtx {
 /* Write a ForwardIndexEntry into an indexWriter, updating its score and skip
  * indexes if needed.
  * Returns the number of bytes written to the index */
-size_t InvertedIndex_WriteEntry(InvertedIndex *idx, ForwardIndexEntry *ent);
+size_t InvertedIndex_WriteEntry(InvertedIndex *idx, t_docId docId, ForwardIndexEntry *ent);
 
 /* Create a new index reader on an inverted index buffer,
 * optionally with a skip index, docTable and scoreIndex.

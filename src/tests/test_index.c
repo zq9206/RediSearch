@@ -86,7 +86,7 @@ int testIndexReadWrite() {
     // }
 
     ForwardIndexEntry h;
-    h.docId = i;
+
     h.flags = 0xff;
     h.freq = (1 + i % 100) / (float)101;
     h.docScore = (1 + (i + 2) % 30) / (float)31;
@@ -97,7 +97,7 @@ int testIndexReadWrite() {
     }
     VVW_Truncate(h.vw);
 
-    InvertedIndex_WriteEntry(idx, &h);
+    InvertedIndex_WriteEntry(idx, i, &h);
 
     // printf("doc %d, score %f offset %zd\n", h.docId, h.docScore, w->bw.buf->offset);
     VVW_Free(h.vw);
@@ -159,7 +159,6 @@ InvertedIndex *createIndex(int size, int idStep) {
     //     w->ndocs);
     // }
     ForwardIndexEntry h;
-    h.docId = id;
     h.flags = 0xff;
     h.freq = i % 10;
     h.docScore = 1;
@@ -171,7 +170,7 @@ InvertedIndex *createIndex(int size, int idStep) {
     for (int n = idStep; n < idStep + i % 4; n++) {
       VVW_Write(h.vw, n);
     }
-    InvertedIndex_WriteEntry(idx, &h);
+    InvertedIndex_WriteEntry(idx, id, &h);
     VVW_Free(h.vw);
 
     id += idStep;
@@ -278,8 +277,8 @@ int testIntersection() {
 
   printf("%d intersections in %ldns\n", count, diffInNanos);
   printf("top freq: %f\n", topFreq);
-  ASSERT(count == 50000)
-  ASSERT(topFreq == 475000.0625);
+  ASSERT_EQUAL(count, 50000)
+  ASSERT_EQUAL(topFreq, 475000.0625);
 
   ii->Free(ii);
   IndexResult_Free(&h);
@@ -456,7 +455,6 @@ typedef union {
 int testIndexFlags() {
 
   ForwardIndexEntry h;
-  h.docId = 1234;
   h.flags = 0xff;
   h.freq = 1;
   h.docScore = 100;
@@ -470,7 +468,7 @@ int testIndexFlags() {
   InvertedIndex *w = NewInvertedIndex(flags, 1);
 
   ASSERT(w->flags == flags);
-  size_t sz = InvertedIndex_WriteEntry(w, &h);
+  size_t sz = InvertedIndex_WriteEntry(w, 1234, &h);
   // printf("written %d bytes\n", sz);
   ASSERT_EQUAL(18, sz);
   InvertedIndex_Free(w);
@@ -478,7 +476,7 @@ int testIndexFlags() {
   flags &= ~Index_StoreTermOffsets;
   w = NewInvertedIndex(flags, 1);
   ASSERT(!(w->flags & Index_StoreTermOffsets));
-  size_t sz2 = InvertedIndex_WriteEntry(w, &h);
+  size_t sz2 = InvertedIndex_WriteEntry(w, 1234, &h);
   ASSERT_EQUAL(sz2, sz - Buffer_Offset(h.vw->bw.buf) - 1);
   InvertedIndex_Free(w);
 
@@ -486,7 +484,7 @@ int testIndexFlags() {
   w = NewInvertedIndex(flags, 1);
   ASSERT(!(w->flags & Index_StoreTermOffsets));
   ASSERT(!(w->flags & Index_StoreFieldFlags));
-  sz = InvertedIndex_WriteEntry(w, &h);
+  sz = InvertedIndex_WriteEntry(w, 1234, &h);
   ASSERT_EQUAL(6, sz);
   InvertedIndex_Free(w);
 

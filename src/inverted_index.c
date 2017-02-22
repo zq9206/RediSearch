@@ -69,7 +69,7 @@ size_t __writeEntry(BufferWriter *bw, IndexFlags idxflags, t_docId docId, uint8_
 }
 
 /* Write a forward-index entry to an index writer */
-size_t InvertedIndex_WriteEntry(InvertedIndex *idx,
+size_t InvertedIndex_WriteEntry(InvertedIndex *idx, t_docId docId,
                                 ForwardIndexEntry *ent) {  // VVW_Truncate(ent->vw);
 
   // printf("writing %s docId %d, lastDocId %d\n", ent->term, ent->docId, idx->lastId);
@@ -77,12 +77,12 @@ size_t InvertedIndex_WriteEntry(InvertedIndex *idx,
 
   // see if we need to grow the current block
   if (blk->numDocs >= INDEX_BLOCK_SIZE) {
-    InvertedIndex_AddBlock(idx, ent->docId);
+    InvertedIndex_AddBlock(idx, docId);
     blk = &INDEX_LAST_BLOCK(idx);
   }
   // // this is needed on the first block
   if (blk->firstId == 0) {
-    blk->firstId = ent->docId;
+    blk->firstId = docId;
   }
   size_t ret = 0;
   VarintVector *offsets = ent->vw->bw.buf;
@@ -95,11 +95,11 @@ size_t InvertedIndex_WriteEntry(InvertedIndex *idx,
   // freq is between 0 and 1
   int quantizedScore = floorl(ent->freq * ent->docScore * (double)FREQ_QUANTIZE_FACTOR);
 
-  ret = __writeEntry(&bw, idx->flags, ent->docId - blk->lastId, ent->flags, quantizedScore,
+  ret = __writeEntry(&bw, idx->flags, docId - blk->lastId, ent->flags, quantizedScore,
                      offsets->offset, offsets);
 
-  idx->lastId = ent->docId;
-  blk->lastId = ent->docId;
+  idx->lastId = docId;
+  blk->lastId = docId;
   ++blk->numDocs;
   ++idx->numDocs;
 

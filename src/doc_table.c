@@ -1,9 +1,9 @@
 #include "doc_table.h"
-#include <sys/param.h>
-#include <string.h>
-#include <stdio.h>
 #include "redismodule.h"
 #include "util/fnv.h"
+#include <stdio.h>
+#include <string.h>
+#include <sys/param.h>
 
 #include "rmalloc.h"
 
@@ -107,6 +107,10 @@ void DocTable_Free(DocTable *t) {
     rm_free(t->docs);
   }
   DocIdMap_Free(&t->dim);
+}
+
+t_docId DocTable_GetId(DocTable *t, const char *key) {
+  return DocIdMap_Get(&t->dim, key);
 }
 
 int DocTable_Delete(DocTable *t, const char *key) {
