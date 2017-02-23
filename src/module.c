@@ -21,6 +21,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include "rmutil/alloc.h"
 
 void tokenizeDocument(IndexSpec *sp, Document doc, ForwardIndex *idx) {
   int totalTokens = 0;

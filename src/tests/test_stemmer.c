@@ -3,6 +3,7 @@
 #include "test_util.h"
 #include "../rmutil/alloc.h"
 #include <string.h>
+#include "../rmutil/alloc.h"
 
 int testStemmer() {
 

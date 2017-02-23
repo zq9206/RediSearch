@@ -2,7 +2,6 @@
 #include "math.h"
 #include "varint.h"
 #include <stdio.h>
-
 #include "rmalloc.h"
 
 #define INDEX_BLOCK_SIZE 100
