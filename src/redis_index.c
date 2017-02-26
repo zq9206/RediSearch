@@ -5,7 +5,6 @@
 #include "rmutil/util.h"
 #include "util/logging.h"
 #include <stdio.h>
-#include "rmutil/alloc.h"
 
 RedisModuleType *InvertedIndexType;
 

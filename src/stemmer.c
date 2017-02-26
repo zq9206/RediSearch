@@ -4,7 +4,6 @@
 #include <sys/param.h>
 #include "dep/snowball/include/libstemmer.h"
 #include "expander.h"
-#include "rmutil/alloc.h"
 
 const char *__supportedLanguages[] = {"arabic",     "danish",   "dutch",     "english", "finnish",
                                       "french",     "german",   "hungarian", "italian", "norwegian",

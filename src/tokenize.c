@@ -1,11 +1,9 @@
-#include "forward_index.h"
-#include "stopwords.h"
 #include "tokenize.h"
 #include "rmalloc.h"
+#include "stopwords.h"
 #include <ctype.h>
 #include <stdlib.h>
 #include <strings.h>
-#include "rmutil/alloc.h"
 
 int tokenize(const char *text, float score, u_char fieldId, void *ctx, TokenFunc f, Stemmer *s,
              u_int offset) {
