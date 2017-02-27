@@ -1,13 +1,22 @@
 #include "tokenize.h"
 #include "rmalloc.h"
 #include "stopwords.h"
+#include "util/thpool.h"
 #include <ctype.h>
 #include <stdlib.h>
 #include <strings.h>
 
+static threadpool thpool;
+static int _threadsInitiated = 0;
+
 int tokenize(const char *text, float score, u_char fieldId, void *ctx, TokenFunc f, Stemmer *s,
              u_int offset) {
-  TokenizerCtx tctx;
+    if(!_threadsInitiated){
+        thpool = thpool_init(tokenizerThreads);
+        _threadsInitiated = 1;
+    }
+  
+    TokenizerCtx tctx;
   tctx.text = text;
   tctx.pos = (char **)&text;
   tctx.separators = DEFAULT_SEPARATORS;

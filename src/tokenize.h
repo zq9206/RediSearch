@@ -10,6 +10,8 @@
 #include <stdlib.h>
 #include <strings.h>
 
+long long tokenizerThreads;
+
 typedef enum {
   DT_WORD,
   DT_STEM,

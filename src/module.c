@@ -1151,14 +1151,20 @@ int SuggestGetCommand(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
   return REDISMODULE_OK;
 }
 
-int RedisModule_OnLoad(RedisModuleCtx *ctx) {
+int RedisModule_OnLoad(RedisModuleCtx *ctx, RedisModuleString **argv, int argc) {
 
-  // LOGGING_INIT(0xFFFFFFFF);
-  if (RedisModule_Init(ctx, "ft", 1, REDISMODULE_APIVER_1) == REDISMODULE_ERR)
-    return REDISMODULE_ERR;
+    // LOGGING_INIT(0xFFFFFFFF);
+    if (RedisModule_Init(ctx, "ft", 1, REDISMODULE_APIVER_1) == REDISMODULE_ERR)
+        return REDISMODULE_ERR;
 
-  /* Self initialization */
-  RegisterStemmerExpander();
+    if (argc == 1){
+        RMUtil_ParseArgs(argv, argc, 0, "l", &tokenizerThreads);
+    } else {
+        tokenizerThreads = 2;
+    }
+
+    /* Self initialization */
+    RegisterStemmerExpander();
 
   // register trie type
   if (TrieType_Register(ctx) == REDISMODULE_ERR) return REDISMODULE_ERR;
