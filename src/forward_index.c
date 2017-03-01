@@ -6,15 +6,15 @@
 #include <sys/param.h>
 #include "rmalloc.h"
 
-ForwardIndex *NewForwardIndex(Document doc) {
+ForwardIndex *NewForwardIndex(Document *doc) {
   ForwardIndex *idx = rm_malloc(sizeof(ForwardIndex));
 
   idx->hits = kh_init(32);
-  idx->docScore = doc.score;
+  idx->docScore = doc->score;
   idx->totalFreq = 0;
   idx->numTokens = 0;
   idx->maxFreq = 0;
-  idx->stemmer = NewStemmer(SnowballStemmer, doc.language);
+  idx->stemmer = NewStemmer(SnowballStemmer, doc->language);
 
   return idx;
 }
@@ -56,7 +56,7 @@ int forwardIndexTokenFunc(void *ctx, Token t) {
   // LG_DEBUG("token %.*s, hval %d\n", t.len, t.s, hval);
   ForwardIndexEntry *h = NULL;
   khiter_t k = kh_get(32, idx->hits, hval);  // first have to get ieter
-  if (k == kh_end(idx->hits)) {              // k will be equal to kh_end if key not present
+  if (k == kh_end(idx->hits)) {  // k will be equal to kh_end if key not present
     /// LG_DEBUG("new entry %.*s\n", t.len, t.s);
     h = rm_calloc(1, sizeof(ForwardIndexEntry));
 
@@ -87,7 +87,8 @@ int forwardIndexTokenFunc(void *ctx, Token t) {
   idx->maxFreq = MAX(h->freq, idx->maxFreq);
   VVW_Write(h->vw, t.pos);
 
-  // LG_DEBUG("%d) %s, token freq: %f total freq: %f\n", t.pos, t.s, h->freq, idx->totalFreq);
+  // LG_DEBUG("%d) %s, token freq: %f total freq: %f\n", t.pos, t.s, h->freq,
+  // idx->totalFreq);
   return 0;
 }
 
@@ -101,12 +102,14 @@ ForwardIndexIterator ForwardIndex_Iterate(ForwardIndex *i) {
 
 ForwardIndexEntry *ForwardIndexIterator_Next(ForwardIndexIterator *iter) {
   // advance the iterator while it's empty
-  while (iter->k != kh_end(iter->idx->hits) && !kh_exist(iter->idx->hits, iter->k)) {
+  while (iter->k != kh_end(iter->idx->hits) &&
+         !kh_exist(iter->idx->hits, iter->k)) {
     ++iter->k;
   }
 
   // if we haven't reached the end, return the current iterator's entry
-  if (iter->k != kh_end(iter->idx->hits) && kh_exist(iter->idx->hits, iter->k)) {
+  if (iter->k != kh_end(iter->idx->hits) &&
+      kh_exist(iter->idx->hits, iter->k)) {
     ForwardIndexEntry *entry = kh_value(iter->idx->hits, iter->k);
     ++iter->k;
     return entry;

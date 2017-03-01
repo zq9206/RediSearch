@@ -5,6 +5,7 @@
 #include "rmutil/util.h"
 #include "util/logging.h"
 #include <stdio.h>
+#include "rmalloc.h"
 
 RedisModuleType *InvertedIndexType;
 
@@ -16,7 +17,7 @@ void *InvertedIndex_RdbLoad(RedisModuleIO *rdb, int encver) {
   idx->lastId = RedisModule_LoadUnsigned(rdb);
   idx->numDocs = RedisModule_LoadUnsigned(rdb);
   idx->size = RedisModule_LoadUnsigned(rdb);
-  idx->blocks = calloc(idx->size, sizeof(IndexBlock));
+  idx->blocks = rm_calloc(idx->size, sizeof(IndexBlock));
 
   for (uint32_t i = 0; i < idx->size; i++) {
     IndexBlock *blk = &idx->blocks[i];
@@ -30,7 +31,6 @@ void *InvertedIndex_RdbLoad(RedisModuleIO *rdb, int encver) {
   return idx;
 }
 void InvertedIndex_RdbSave(RedisModuleIO *rdb, void *value) {
-
   InvertedIndex *idx = value;
   RedisModule_SaveUnsigned(rdb, idx->flags);
   RedisModule_SaveUnsigned(rdb, idx->lastId);
@@ -86,11 +86,11 @@ RedisModuleString *fmtRedisScoreIndexKey(RedisSearchCtx *ctx, const char *term, 
 }
 
 /*
- * Select a random term from the index that matches the index prefix and inveted key format.
+ * Select a random term from the index that matches the index prefix and inveted
+ * key format.
  * It tries RANDOMKEY 10 times and returns NULL if it can't find anything.
  */
 const char *Redis_SelectRandomTerm(RedisSearchCtx *ctx, size_t *tlen) {
-
   RedisModuleString *pf = fmtRedisTermKey(ctx, "", 0);
   size_t pflen;
   const char *prefix = RedisModule_StringPtrLen(pf, &pflen);
@@ -113,8 +113,10 @@ const char *Redis_SelectRandomTerm(RedisSearchCtx *ctx, size_t *tlen) {
   return NULL;
 }
 
-// ScoreIndex *LoadRedisScoreIndex(RedisSearchCtx *ctx, const char *term, size_t len) {
-//   Buffer *b = NewRedisBuffer(ctx->redisCtx, fmtRedisScoreIndexKey(ctx, term, len), BUFFER_READ);
+// ScoreIndex *LoadRedisScoreIndex(RedisSearchCtx *ctx, const char *term, size_t
+// len) {
+//   Buffer *b = NewRedisBuffer(ctx->redisCtx, fmtRedisScoreIndexKey(ctx, term,
+//   len), BUFFER_READ);
 //   if (b == NULL || b->cap <= sizeof(ScoreIndexEntry)) {
 //     return NULL;
 //   }
@@ -137,7 +139,6 @@ InvertedIndex *Redis_OpenInvertedIndex(RedisSearchCtx *ctx, const char *term, si
 
   // on write mode, for an empty key we simply create a new index key
   if (RedisModule_KeyType(k) == REDISMODULE_KEYTYPE_EMPTY) {
-
     if (write) {
       InvertedIndex *idx = NewInvertedIndex(ctx->spec->flags, 1);
       RedisModule_ModuleTypeSetValue(k, InvertedIndexType, idx);
@@ -152,7 +153,6 @@ InvertedIndex *Redis_OpenInvertedIndex(RedisSearchCtx *ctx, const char *term, si
 
 IndexReader *Redis_OpenReader(RedisSearchCtx *ctx, const char *term, size_t len, DocTable *dt,
                               int singleWordMode, u_char fieldMask) {
-
   RedisModuleString *termKey = fmtRedisTermKey(ctx, term, len);
   RedisModuleKey *k = RedisModule_OpenKey(ctx->redisCtx, termKey, REDISMODULE_READ);
   RedisModule_FreeString(ctx->redisCtx, termKey);
@@ -181,8 +181,9 @@ IndexReader *Redis_OpenReader(RedisSearchCtx *ctx, const char *term, size_t len,
 //   free(r);
 // }
 
-void Document_Free(Document doc) {
-  free(doc.fields);
+void Document_Free(Document *doc) {
+  rm_free(doc->fields);
+  // rm_free(doc);
 }
 
 int Redis_LoadDocument(RedisSearchCtx *ctx, RedisModuleString *key, Document *doc) {
@@ -197,7 +198,7 @@ int Redis_LoadDocument(RedisSearchCtx *ctx, RedisModuleString *key, Document *do
   if (len == 0) {
     return REDISMODULE_ERR;
   }
-  doc->fields = calloc(len / 2, sizeof(DocumentField));
+  doc->fields = rm_calloc(len / 2, sizeof(DocumentField));
   doc->numFields = len / 2;
   int n = 0;
   RedisModuleCallReply *k, *v;
@@ -211,23 +212,23 @@ int Redis_LoadDocument(RedisSearchCtx *ctx, RedisModuleString *key, Document *do
   return REDISMODULE_OK;
 }
 
-Document NewDocument(RedisModuleString *docKey, double score, int numFields, const char *lang,
-                     const char *payload, size_t payloadSize) {
-  Document doc;
-  doc.docKey = docKey;
-  doc.score = (float)score;
-  doc.numFields = numFields;
-  doc.fields = calloc(doc.numFields, sizeof(DocumentField));
-  doc.language = lang;
-  doc.payload = payload;
-  doc.payloadSize = payloadSize;
+Document *NewDocument(RedisModuleString *docKey, double score, int numFields, const char *lang,
+                      const char *payload, size_t payloadSize) {
+  Document *doc = rm_malloc(sizeof(Document));
+  doc->docKey = docKey;
+  doc->score = (float)score;
+  doc->numFields = numFields;
+  doc->fields = rm_calloc(doc->numFields, sizeof(DocumentField));
+  doc->language = lang;
+  doc->payload = rm_strndup(payload, payloadSize);
+  doc->payloadSize = payloadSize;
 
   return doc;
 }
 
 Document *Redis_LoadDocuments(RedisSearchCtx *ctx, RedisModuleString **keys, int numKeys,
                               int *nump) {
-  Document *docs = calloc(numKeys, sizeof(Document));
+  Document *docs = rm_calloc(numKeys, sizeof(Document));
   int n = 0;
 
   for (int i = 0; i < numKeys; i++) {
@@ -240,7 +241,6 @@ Document *Redis_LoadDocuments(RedisSearchCtx *ctx, RedisModuleString **keys, int
 }
 
 int Redis_SaveDocument(RedisSearchCtx *ctx, Document *doc) {
-
   RedisModuleKey *k =
       RedisModule_OpenKey(ctx->redisCtx, doc->docKey, REDISMODULE_WRITE | REDISMODULE_READ);
   if (k == NULL || (RedisModule_KeyType(k) != REDISMODULE_KEYTYPE_EMPTY &&
@@ -369,9 +369,7 @@ int Redis_DropScanHandler(RedisModuleCtx *ctx, RedisModuleString *kn, void *opaq
 }
 
 int Redis_DropIndex(RedisSearchCtx *ctx, int deleteDocuments) {
-
   if (deleteDocuments) {
-
     DocTable *dt = &ctx->spec->docs;
 
     for (size_t i = 1; i < dt->size; i++) {

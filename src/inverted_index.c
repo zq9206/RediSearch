@@ -11,10 +11,10 @@
 #define IR_CURRENT_BLOCK(ir) (ir->idx->blocks[ir->currentBlock])
 
 void InvertedIndex_AddBlock(InvertedIndex *idx, t_docId firstId) {
-
   idx->size++;
   idx->blocks = rm_realloc(idx->blocks, idx->size * sizeof(IndexBlock));
-  idx->blocks[idx->size - 1] = (IndexBlock){.firstId = firstId, .lastId = 0, .numDocs = 0};
+  idx->blocks[idx->size - 1] =
+      (IndexBlock){.firstId = firstId, .lastId = 0, .numDocs = 0};
   Buffer_Init(&(INDEX_LAST_BLOCK(idx).data), INDEX_BLOCK_INITIAL_CAP);
 }
 
@@ -31,22 +31,20 @@ InvertedIndex *NewInvertedIndex(IndexFlags flags, int initBlock) {
   return idx;
 }
 
-void indexBlock_Free(IndexBlock *blk) {
-  Buffer_Free(&blk->data);
-}
+void indexBlock_Free(IndexBlock *blk) { Buffer_Free(&blk->data); }
 
 void InvertedIndex_Free(void *ctx) {
   InvertedIndex *idx = ctx;
   for (uint32_t i = 0; i < idx->size; i++) {
     indexBlock_Free(&idx->blocks[i]);
   }
-  rm_free(idx->blocks);
+  // rm_free(idx->blocks);
   rm_free(idx);
 }
 
-size_t __writeEntry(BufferWriter *bw, IndexFlags idxflags, t_docId docId, uint8_t flags,
-                    int quantizedScore, size_t offsetsSz, VarintVector *offsets) {
-
+size_t __writeEntry(BufferWriter *bw, IndexFlags idxflags, t_docId docId,
+                    uint8_t flags, int quantizedScore, size_t offsetsSz,
+                    VarintVector *offsets) {
   size_t ret = WriteVarint(docId, bw);
   // encode len
 
@@ -68,10 +66,12 @@ size_t __writeEntry(BufferWriter *bw, IndexFlags idxflags, t_docId docId, uint8_
 }
 
 /* Write a forward-index entry to an index writer */
-size_t InvertedIndex_WriteEntry(InvertedIndex *idx, t_docId docId,
-                                ForwardIndexEntry *ent) {  // VVW_Truncate(ent->vw);
+size_t InvertedIndex_WriteEntry(
+    InvertedIndex *idx, t_docId docId,
+    ForwardIndexEntry *ent) {  // VVW_Truncate(ent->vw);
 
-  // printf("writing %s docId %d, lastDocId %d\n", ent->term, ent->docId, idx->lastId);
+  // printf("writing %s docId %d, lastDocId %d\n", ent->term, ent->docId,
+  // idx->lastId);
   IndexBlock *blk = &INDEX_LAST_BLOCK(idx);
 
   // see if we need to grow the current block
@@ -88,14 +88,16 @@ size_t InvertedIndex_WriteEntry(InvertedIndex *idx, t_docId docId,
 
   BufferWriter bw = NewBufferWriter(&blk->data);
   //   if (idx->flags & Index_StoreScoreIndexes) {
-  //     ScoreIndexWriter_AddEntry(&w->scoreWriter, ent->freq, BufferOffset(w->bw.buf), w->lastId);
+  //     ScoreIndexWriter_AddEntry(&w->scoreWriter, ent->freq,
+  //     BufferOffset(w->bw.buf), w->lastId);
   //   }
   // quantize the score to compress it to max 4 bytes
   // freq is between 0 and 1
-  int quantizedScore = floorl(ent->freq * ent->docScore * (double)FREQ_QUANTIZE_FACTOR);
+  int quantizedScore =
+      floorl(ent->freq * ent->docScore * (double)FREQ_QUANTIZE_FACTOR);
 
-  ret = __writeEntry(&bw, idx->flags, docId - blk->lastId, ent->flags, quantizedScore,
-                     offsets->offset, offsets);
+  ret = __writeEntry(&bw, idx->flags, docId - blk->lastId, ent->flags,
+                     quantizedScore, offsets->offset, offsets);
 
   idx->lastId = docId;
   blk->lastId = docId;
@@ -121,12 +123,13 @@ void indexReader_advanceBlock(IndexReader *ir) {
   ir->lastId = 0;  // IR_CURRENT_BLOCK(ir).firstId;
 }
 
-inline size_t __readEntry(BufferReader *br, IndexFlags idxflags, t_docId lastId, t_docId *docId,
-                          int *quantizedScore, uint8_t *flags, VarintVector *offsets,
-                          int singleWordMode) {
+inline size_t __readEntry(BufferReader *br, IndexFlags idxflags, t_docId lastId,
+                          t_docId *docId, int *quantizedScore, uint8_t *flags,
+                          VarintVector *offsets, int singleWordMode) {
   size_t startPos = BufferReader_Offset(br);
   *docId = ReadVarint(br) + lastId;
-  // printf("IR %s read docId %d, last id %d\n", ir->term->str, *docId, ir->lastId);
+  // printf("IR %s read docId %d, last id %d\n", ir->term->str, *docId,
+  // ir->lastId);
   *quantizedScore = ReadVarint(br);
 
   if (idxflags & Index_StoreFieldFlags) {
@@ -136,7 +139,6 @@ inline size_t __readEntry(BufferReader *br, IndexFlags idxflags, t_docId lastId,
   }
 
   if (idxflags & Index_StoreTermOffsets) {
-
     size_t offsetsLen = ReadVarint(br);
 
     // If needed - read offset vectors
@@ -150,8 +152,8 @@ inline size_t __readEntry(BufferReader *br, IndexFlags idxflags, t_docId lastId,
   return BufferReader_Offset(br) - startPos;
 }
 
-inline int IR_GenericRead(IndexReader *ir, t_docId *docId, float *freq, uint8_t *flags,
-                          VarintVector *offsets) {
+inline int IR_GenericRead(IndexReader *ir, t_docId *docId, float *freq,
+                          uint8_t *flags, VarintVector *offsets) {
   if (!IR_HasNext(ir)) {
     return INDEXREAD_EOF;
   }
@@ -180,7 +182,6 @@ inline int IR_TryRead(IndexReader *ir, t_docId *docId, t_docId expectedDocId) {
   }
   // if we're at the end of the block
   if (BufferReader_AtEnd(&ir->br)) {
-
     *docId = expectedDocId + 1;
     return INDEXREAD_NOTFOUND;
   }
@@ -205,7 +206,8 @@ inline int IR_TryRead(IndexReader *ir, t_docId *docId, t_docId expectedDocId) {
   ir->lastId = *docId;
   // printf("Tryread expected %d, got: %d\n", expectedDocId, ir->lastId);
 
-  if ((*docId != expectedDocId && expectedDocId != 0) || !(flags & ir->fieldMask)) {
+  if ((*docId != expectedDocId && expectedDocId != 0) ||
+      !(flags & ir->fieldMask)) {
     return INDEXREAD_NOTFOUND;
   }
 
@@ -213,7 +215,6 @@ inline int IR_TryRead(IndexReader *ir, t_docId *docId, t_docId expectedDocId) {
 }
 
 int IR_Read(void *ctx, IndexResult *e) {
-
   IndexReader *ir = ctx;
 
   // IndexRecord rec = {.term = ir->term};
@@ -233,8 +234,8 @@ int IR_Read(void *ctx, IndexResult *e) {
   }
   int rc;
   do {
-
-    rc = IR_GenericRead(ir, &ir->record.docId, &ir->record.tf, &ir->record.flags, offsets);
+    rc = IR_GenericRead(ir, &ir->record.docId, &ir->record.tf,
+                        &ir->record.flags, offsets);
 
     // add the record to the current result
     if (rc == INDEXREAD_OK) {
@@ -246,7 +247,8 @@ int IR_Read(void *ctx, IndexResult *e) {
       ir->lastId = ir->record.docId;
       IndexResult_PutRecord(e, &ir->record);
 
-      // printf("IR LOOP %s Read docId %d, lastId %d rc %d\n", ir->term->str, e->docId,
+      // printf("IR LOOP %s Read docId %d, lastId %d rc %d\n", ir->term->str,
+      // e->docId,
       // ir->lastId,rc);
       return INDEXREAD_OK;
     }
@@ -269,7 +271,6 @@ int _isPos(InvertedIndex *idx, uint32_t i, t_docId docId) {
 }
 
 int indexReader_skipToBlock(IndexReader *ir, t_docId docId) {
-
   InvertedIndex *idx = ir->idx;
   if (idx->size == 0 || docId < idx->blocks[0].firstId) {
     return 0;
@@ -346,7 +347,6 @@ int IR_SkipTo(void *ctx, u_int32_t docId, IndexResult *hit) {
   t_docId lastId = ir->lastId, readId = 0;
   t_offset offset = BufferReader_Offset(&ir->br);
   do {
-
     // do a quick-read until we hit or pass the desired document
     rc = IR_TryRead(ir, &readId, docId);
     if (rc == INDEXREAD_EOF) {
@@ -354,7 +354,6 @@ int IR_SkipTo(void *ctx, u_int32_t docId, IndexResult *hit) {
     }
     // rewind 1 document and re-read it...
     if (rc == INDEXREAD_OK || readId > docId) {
-
       IR_Seek(ir, offset, lastId);
 
       int _rc = IR_Read(ir, hit);
@@ -381,8 +380,9 @@ size_t IR_NumDocs(void *ctx) {
   return ir->len;
 }
 
-IndexReader *NewIndexReader(InvertedIndex *idx, DocTable *docTable, uint8_t fieldMask,
-                            IndexFlags flags, Term *term, int singleWordMode) {
+IndexReader *NewIndexReader(InvertedIndex *idx, DocTable *docTable,
+                            uint8_t fieldMask, IndexFlags flags, Term *term,
+                            int singleWordMode) {
   IndexReader *ret = rm_malloc(sizeof(IndexReader));
   ret->currentBlock = 0;
 
@@ -391,7 +391,8 @@ IndexReader *NewIndexReader(InvertedIndex *idx, DocTable *docTable, uint8_t fiel
 
   if (term) {
     // compute IDF based on num of docs in the header
-    ret->term->idf = logb(1.0F + docTable->size / (idx->numDocs ? idx->numDocs : (double)1));
+    ret->term->idf =
+        logb(1.0F + docTable->size / (idx->numDocs ? idx->numDocs : (double)1));
   }
 
   ret->record = (IndexRecord){.term = term};
@@ -399,11 +400,13 @@ IndexReader *NewIndexReader(InvertedIndex *idx, DocTable *docTable, uint8_t fiel
   ret->docTable = docTable;
   ret->len = 0;
   ret->singleWordMode = singleWordMode;
-  //   // only use score index on single words, no field filter and large entries
+  //   // only use score index on single words, no field filter and large
+  //   entries
   //   ret->useScoreIndex = 0;
   //   ret->scoreIndex = NULL;
   //   if (flags & Index_StoreScoreIndexes) {
-  //     ret->useScoreIndex = sci != NULL && singleWordMode && fieldMask == 0xff &&
+  //     ret->useScoreIndex = sci != NULL && singleWordMode && fieldMask == 0xff
+  //     &&
   //                          ret->header.numDocs > SCOREINDEX_DELETE_THRESHOLD;
   //     ret->scoreIndex = sci;
   //   }
@@ -435,9 +438,7 @@ void ReadIterator_Free(IndexIterator *it) {
   rm_free(it);
 }
 
-inline t_docId IR_LastDocId(void *ctx) {
-  return ((IndexReader *)ctx)->lastId;
-}
+inline t_docId IR_LastDocId(void *ctx) { return ((IndexReader *)ctx)->lastId; }
 
 IndexIterator *NewReadIterator(IndexReader *ir) {
   IndexIterator *ri = rm_malloc(sizeof(IndexIterator));
@@ -474,7 +475,8 @@ int IndexBlock_Repair(IndexBlock *blk, DocTable *dt, IndexFlags flags) {
   VarintVector offsets;
   int qscore;
   while (!BufferReader_AtEnd(&br)) {
-    size_t sz = __readEntry(&br, flags, lastReadId, &docId, &qscore, &fflags, &offsets, 0);
+    size_t sz = __readEntry(&br, flags, lastReadId, &docId, &qscore, &fflags,
+                            &offsets, 0);
 
     DocumentMetadata *md = DocTable_Get(dt, docId);
     lastReadId = docId;
@@ -482,11 +484,11 @@ int IndexBlock_Repair(IndexBlock *blk, DocTable *dt, IndexFlags flags) {
       frags += 1;
       printf("ignoring hole in doc %d, frags now %d\n", docId, frags);
     } else {
-
       if (frags) {
-        printf("Writing entry %d, last read id %d, last blk id %d\n", docId, lastReadId,
-               blk->lastId);
-        __writeEntry(&bw, flags, docId - blk->lastId, fflags, qscore, offsets.cap, &offsets);
+        printf("Writing entry %d, last read id %d, last blk id %d\n", docId,
+               lastReadId, blk->lastId);
+        __writeEntry(&bw, flags, docId - blk->lastId, fflags, qscore,
+                     offsets.cap, &offsets);
       } else {
         bw.buf->offset += sz;
         bw.pos += sz;
@@ -503,8 +505,8 @@ int IndexBlock_Repair(IndexBlock *blk, DocTable *dt, IndexFlags flags) {
   return frags;
 }
 
-int InvertedIndex_Repair(InvertedIndex *idx, DocTable *dt, uint32_t startBlock, int num) {
-
+int InvertedIndex_Repair(InvertedIndex *idx, DocTable *dt, uint32_t startBlock,
+                         int num) {
   int n = 0;
   while (startBlock < idx->size && (num <= 0 || n < num)) {
     int rep = IndexBlock_Repair(&idx->blocks[startBlock], dt, idx->flags);

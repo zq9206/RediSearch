@@ -7,6 +7,9 @@
 typedef struct {
   RedisModuleString *name;
   RedisModuleString *text;
+  FieldType type;
+  double weight;
+  int id;
 } DocumentField;
 
 typedef struct {
@@ -21,16 +24,19 @@ typedef struct {
   size_t payloadSize;
 } Document;
 
-Document NewDocument(RedisModuleString *docKey, double score, int numFields, const char *lang,
-                     const char *payload, size_t payloadSize);
+Document *NewDocument(RedisModuleString *docKey, double score, int numFields,
+                      const char *lang, const char *payload,
+                      size_t payloadSize);
 
-void Document_Free(Document doc);
+void Document_Free(Document *doc);
 
 /* Load a single document */
-int Redis_LoadDocument(RedisSearchCtx *ctx, RedisModuleString *key, Document *Doc);
+int Redis_LoadDocument(RedisSearchCtx *ctx, RedisModuleString *key,
+                       Document *Doc);
 
 /* Load a bunch of documents from redis */
-Document *Redis_LoadDocuments(RedisSearchCtx *ctx, RedisModuleString **key, int numKeys, int *nump);
+Document *Redis_LoadDocuments(RedisSearchCtx *ctx, RedisModuleString **key,
+                              int numKeys, int *nump);
 
 int Redis_SaveDocument(RedisSearchCtx *ctx, Document *doc);
 

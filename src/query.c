@@ -15,6 +15,7 @@
 #include "tokenize.h"
 #include "util/heap.h"
 #include "util/logging.h"
+#include "rmalloc.h"
 
 void __queryNode_Print(QueryNode *qs, int depth);
 
@@ -46,7 +47,6 @@ void _queryUnionNode_Free(QueryUnionNode *pn) {
 // void _queryNumericNode_Free(QueryNumericNode *nn) { free(nn->nf); }
 
 void QueryNode_Free(QueryNode *n) {
-
   switch (n->type) {
     case QN_TOKEN:
       _queryTokenNode_Free(&n->tn);
@@ -140,7 +140,6 @@ void Query_SetGeoFilter(Query *q, GeoFilter *gf) {
 }
 
 void Query_SetNumericFilter(Query *q, NumericFilter *nf) {
-
   _query_SetFilterNode(q, NewNumericNode(nf));
 }
 
@@ -180,7 +179,6 @@ IndexIterator *query_EvalPhraseNode(Query *q, QueryPhraseNode *node) {
 }
 
 IndexIterator *query_EvalNumericNode(Query *q, QueryNumericNode *node) {
-
   FieldSpec *fs =
       IndexSpec_GetField(q->ctx->spec, node->nf->fieldName, strlen(node->nf->fieldName));
   if (fs->type != F_NUMERIC) {
@@ -195,7 +193,6 @@ IndexIterator *query_EvalNumericNode(Query *q, QueryNumericNode *node) {
 }
 
 IndexIterator *query_EvalGeofilterNode(Query *q, QueryGeofilterNode *node) {
-
   FieldSpec *fs = IndexSpec_GetField(q->ctx->spec, node->gf->property, strlen(node->gf->property));
   if (fs->type != F_GEO) {
     return NULL;
@@ -483,7 +480,8 @@ QueryResult *Query_Execute(Query *query) {
     free(h);
   }
 
-  // if we still have something in the heap (meaning offset > 0), we need to poll...
+  // if we still have something in the heap (meaning offset > 0), we need to
+  // poll...
   while (heap_count(pq) > 0) {
     IndexResult *h = heap_poll(pq);
     IndexResult_Free(h);
@@ -565,11 +563,11 @@ int __queryResult_serializeFullResults(QueryResult *r, RedisSearchCtx *sctx, int
       RedisModule_ReplyWithString(ctx, doc.fields[f].text);
     }
 
-    Document_Free(doc);
+    Document_Free(&doc);
   }
   RedisModule_ReplySetArrayLength(ctx, len);
 
-  free(docs);
+  rm_free(docs);
   return REDISMODULE_OK;
 }
 

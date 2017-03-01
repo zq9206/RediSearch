@@ -18,7 +18,8 @@ typedef struct {
 
 KHASH_MAP_INIT_INT(32, ForwardIndexEntry *)
 
-// the quantizationn factor used to encode normalized (0..1) frquencies in the index
+// the quantizationn factor used to encode normalized (0..1) frquencies in the
+// index
 #define FREQ_QUANTIZE_FACTOR 0xFFFF
 
 typedef struct {
@@ -39,7 +40,7 @@ typedef struct {
 int forwardIndexTokenFunc(void *ctx, Token t);
 
 void ForwardIndexFree(ForwardIndex *idx);
-ForwardIndex *NewForwardIndex(Document doc);
+ForwardIndex *NewForwardIndex(Document *doc);
 ForwardIndexIterator ForwardIndex_Iterate(ForwardIndex *i);
 ForwardIndexEntry *ForwardIndexIterator_Next(ForwardIndexIterator *iter);
 void ForwardIndex_NormalizeFreq(ForwardIndex *, ForwardIndexEntry *);
