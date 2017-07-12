@@ -113,6 +113,8 @@ int II_Read(void *ctx, RSIndexResult **hit) {
         ++nh;
         AggregateResult_AddChild(ic->current, h);
       } else {
+        // this should not happen, but if we get here due to a bug, not incrementing would cause an
+        // infinite loop
         ic->lastDocId++;
       }
     }

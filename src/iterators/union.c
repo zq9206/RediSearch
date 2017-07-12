@@ -1,7 +1,7 @@
 #include "union.h"
 #include <sys/param.h>
 
- t_docId UI_LastDocId(void *ctx) {
+t_docId UI_LastDocId(void *ctx) {
   return ((UnionContext *)ctx)->minDocId;
 }
 
@@ -112,6 +112,7 @@ int UI_SkipTo(void *ctx, uint32_t docId, RSIndexResult **hit) {
   AggregateResult_Reset(ui->current);
   if (docId < ui->minDocId) {
     AggregateResult_Reset((*hit));
+    (*hit)->docId = ui->minDocId;
     return INDEXREAD_NOTFOUND;
   }
 
@@ -187,6 +188,7 @@ int UI_SkipTo(void *ctx, uint32_t docId, RSIndexResult **hit) {
   // not found...
   ui->minDocId = minDocId;
   AggregateResult_Reset((*hit));
+  (*hit)->docId = ui->minDocId;
   // printf("UI %p skipped to docId %d NOT FOUND, minDocId now %d\n", ui, docId, ui->minDocId);
   return INDEXREAD_NOTFOUND;
 }

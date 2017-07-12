@@ -8,73 +8,71 @@
 *  Returns INDEXREAD_EOF if at the end */
 int IL_Read(void *ctx, RSIndexResult **r) {
   IdListIterator *it = ctx;
-  if (it->atEOF || it->size == 0) {
-    it->atEOF = 1;
-    return INDEXREAD_EOF;
-  }
 
-  it->lastDocId = it->docIds[it->offset];
-  ++it->offset;
   if (it->offset == it->size) {
-    it->atEOF = 1;
+    goto eof;
   }
-  // TODO: Filter here
+  it->lastDocId = it->docIds[it->offset++];
+
+  // match must be true here
   it->res->docId = it->lastDocId;
   *r = it->res;
-  // AggregateResult_AddChild(r, &it->res);
 
   return INDEXREAD_OK;
+
+eof:
+  it->atEOF = 1;
+  return INDEXREAD_EOF;
 }
 
 /* Skip to a docid, potentially reading the entry into hit, if the docId
  * matches */
 int IL_SkipTo(void *ctx, uint32_t docId, RSIndexResult **r) {
   IdListIterator *it = ctx;
-  if (it->atEOF || it->size == 0) {
-    it->atEOF = 1;
-    return INDEXREAD_EOF;
-  }
 
+  if (docId == 0) {
+    return IL_Read(it, r);
+  }
+  if (it->atEOF || it->size == it->offset) {
+    goto eof;
+  }
+  // If we are seeking beyond our last docId - just declare EOF
   if (docId > it->docIds[it->size - 1]) {
-    it->atEOF = 1;
-    return INDEXREAD_EOF;
+    goto eof;
   }
 
-  t_offset top = it->size - 1, bottom = it->offset;
-  t_offset i = bottom;
-  t_offset newi;
+  // Find the closest entry to the requested docId
+  int top = (int)it->size - 1, bottom = (int)it->offset;
+  int i = bottom;
 
-  while (bottom < top) {
+  while (bottom <= top) {
     t_docId did = it->docIds[i];
     if (did == docId) {
       break;
     }
-    if (docId <= did) {
-      top = i;
+    if (docId < did) {
+      top = i - 1;
     } else {
-      bottom = i;
+      bottom = i + 1;
     }
-    newi = (bottom + top) / 2;
-    if (newi == i) {
-      break;
-    }
-    i = newi;
+    i = (bottom + top) / 2;
   }
-  it->offset = i + 1;
-  if (it->offset == it->size) {
-    it->atEOF = 1;
+  if (it->docIds[i] < docId && i < it->size) {
+    i++;
   }
+  if (i == it->size) goto eof;
 
   it->lastDocId = it->docIds[i];
   it->res->docId = it->lastDocId;
-
+  it->offset = i + 1;
   *r = it->res;
-
-  // printf("lastDocId: %d, docId%d\n", it->lastDocId, docId);
-  if (it->lastDocId == docId) {
-    return INDEXREAD_OK;
-  }
-  return INDEXREAD_NOTFOUND;
+  // if we got ok - check if the read document was the one we wanted or not.
+  // If the requested document doesn't match the filter, we should return NOTFOUND
+  return it->lastDocId == docId ? INDEXREAD_OK : INDEXREAD_NOTFOUND;
+eof:
+  it->atEOF = 1;
+  it->res->docId = 0;
+  return INDEXREAD_EOF;
 }
 
 /* the last docId read */
@@ -121,6 +119,7 @@ IndexIterator *NewIdListIterator(t_docId *ids, t_offset num) {
   it->size = num;
   it->docIds = rm_calloc(num, sizeof(t_docId));
   if (num > 0) memcpy(it->docIds, ids, num * sizeof(t_docId));
+
   it->atEOF = 0;
   it->lastDocId = 0;
   it->res = NewVirtualResult();
