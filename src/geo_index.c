@@ -1,4 +1,3 @@
-#include "index.h"
 #include "geo_index.h"
 #include "rmutil/util.h"
 #include "rmalloc.h"

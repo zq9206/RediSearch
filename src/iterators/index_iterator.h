@@ -1,9 +1,9 @@
-#ifndef __INDEX_ITERATOR_H__
-#define __INDEX_ITERATOR_H__
+#ifndef RS_INDEX_ITERATOR_H__
+#define RS_INDEX_ITERATOR_H__
 
 #include <stdint.h>
-#include "redisearch.h"
-#include "index_result.h"
+#include <redisearch.h>
+#include <index_result.h>
 
 #define INDEXREAD_EOF 0
 #define INDEXREAD_OK 1

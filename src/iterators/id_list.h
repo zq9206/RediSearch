@@ -1,5 +1,5 @@
-#ifndef __ID_LIST_H__
-#define __ID_LIST_H__
+#ifndef RS_ID_LIST_H__
+#define RS_ID_LIST_H__
 
 #include "index_iterator.h"
 

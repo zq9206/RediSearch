@@ -1,6 +1,7 @@
-#include "index_result.h"
+#include <index_result.h>
 #include "index_iterator.h"
-#include "rmalloc.h"
+#include <rmalloc.h>
+
 #include "id_list.h"
 
 /* Read the next entry from the iterator, into hit *e.

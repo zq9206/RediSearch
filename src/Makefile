@@ -31,6 +31,7 @@ export CFLAGS
 # Sources
 SOURCEDIR=$(shell pwd -P)
 CC_SOURCES = $(wildcard $(SOURCEDIR)/*.c) 
+CC_SOURCES = $(wildcard $(SOURCEDIR)/iterators/*.c) 
 CC_SOURCES += $(wildcard $(SOURCEDIR)/query_parser/*.c) 
 CC_SOURCES += $(wildcard $(SOURCEDIR)/ext/*.c) 
 CC_SOURCES += $(wildcard $(SOURCEDIR)/util/*.c) 
