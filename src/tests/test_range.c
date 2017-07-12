@@ -1,10 +1,9 @@
-#include "../numeric_index.h"
+#include <numeric_index.h>
 #include <stdio.h>
+#include <iterators/iterators.h>
+#include <rmutil/alloc.h>
 #include "test_util.h"
 #include "time_sample.h"
-#include "../index.h"
-#include "../rmutil/alloc.h"
-
 // Helper so we get the same pseudo-random numbers
 // in tests across environments
 u_int prng_seed = 1337;

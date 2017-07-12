@@ -5,17 +5,15 @@
 #include <sys/param.h>
 #include <time.h>
 
+#include <redismodule.h>
+
 #include "commands.h"
 #include "version.h"
 #include "forward_index.h"
-#include "geo_index.h"
 #include "iterators/iterators.h"
 #include "numeric_filter.h"
-#include "numeric_index.h"
 #include "query.h"
-#include "query_node.h"
 #include "redis_index.h"
-#include "redismodule.h"
 #include "rmutil/strings.h"
 #include "rmutil/util.h"
 #include "spec.h"
@@ -23,7 +21,6 @@
 #include "tokenize.h"
 #include "trie/trie_type.h"
 #include "util/logging.h"
-#include "varint.h"
 #include "extension.h"
 #include "ext/default.h"
 #include "search_request.h"

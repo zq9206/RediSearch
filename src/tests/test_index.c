@@ -1,18 +1,21 @@
-#include "../buffer.h"
-#include "../index.h"
-#include "../inverted_index.h"
-#include "../query_parser/tokenizer.h"
-#include "../rmutil/alloc.h"
-#include "../spec.h"
-#include "../tokenize.h"
-#include "../varint.h"
+#include <buffer.h>
+#include <inverted_index.h>
+#include <iterators/iterators.h>
+#include <query_parser/tokenizer.h>
+#include <spec.h>
+#include <tokenize.h>
+#include <varint.h>
+#include <rmalloc.h>
 #include "test_util.h"
 #include "time_sample.h"
-#include "../rmutil/alloc.h"
+#include <rmutil/alloc.h>
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>
 #include <time.h>
+
+int IR_HasNext(void *ctx);
+int IR_Read(void *ctx, RSIndexResult **e);
 
 RSOffsetIterator _offsetVector_iterate(RSOffsetVector *v);
 int testVarint() {
@@ -184,7 +187,10 @@ int testIndexReadWrite() {
     // //IR_Free(ir);
     // }
     // IndexResult_Free(&h);
-    IR_Free(ir);
+    IndexResult_Free(ir->record);
+
+    Term_Free(ir->term);
+    rm_free(ir);
   }
 
   // IW_Free(w);

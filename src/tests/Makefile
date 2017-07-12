@@ -2,7 +2,7 @@ ifndef RM_INCLUDE_DIR
 	RM_INCLUDE_DIR=../
 endif
 
-.SILENT:
+#.SILENT:
 
 CFLAGS = -g -O2 -fPIC -std=gnu99 -I./ 
 CFLAGS += -I$(RM_INCLUDE_DIR)
@@ -10,6 +10,7 @@ CFLAGS += -I$(RM_INCLUDE_DIR)
 # Sources
 SOURCEDIR=..
 CC_SOURCES = $(wildcard $(SOURCEDIR)/*.c) 
+CC_SOURCES += $(wildcard $(SOURCEDIR)/iterators/*.c) 
 CC_SOURCES += $(wildcard $(SOURCEDIR)/query_parser/*.c) 
 CC_SOURCES += $(wildcard $(SOURCEDIR)/ext/*.c) 
 CC_SOURCES += $(wildcard $(SOURCEDIR)/util/*.c) 
