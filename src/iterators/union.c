@@ -1,12 +1,16 @@
 #include "union.h"
+#include <sys/param.h>
 
-inline t_docId UI_LastDocId(void *ctx) {
+ t_docId UI_LastDocId(void *ctx) {
   return ((UnionContext *)ctx)->minDocId;
 }
 
 RSIndexResult *UI_Current(void *ctx) {
   return ((UnionContext *)ctx)->current;
 }
+
+int UI_Read(void *ctx, RSIndexResult **hit);
+int UI_SkipTo(void *ctx, uint32_t docId, RSIndexResult **hit);
 
 int UI_Read(void *ctx, RSIndexResult **hit) {
   UnionContext *ui = ctx;

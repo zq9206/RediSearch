@@ -1,7 +1,7 @@
 #include "id_filter.h"
 #include "doc_table.h"
 #include "rmalloc.h"
-#include "id_list.h"
+#include "iterators/id_list.h"
 
 /* Create a new IdFilter from a list of redis strings. count is the number of strings, guaranteed to
  * be less than or equal to the length of args */

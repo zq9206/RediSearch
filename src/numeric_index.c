@@ -1,7 +1,6 @@
 #include "numeric_index.h"
 #include "sys/param.h"
 #include "rmutil/vector.h"
-#include "index.h"
 #include <math.h>
 #include "redismodule.h"
 //#include "tests/time_sample.h"

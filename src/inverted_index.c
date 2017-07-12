@@ -10,8 +10,8 @@
 
 #define INDEX_LAST_BLOCK(idx) (idx->blocks[idx->size - 1])
 
-size_t readEntry(BufferReader *__restrict__ br, IndexFlags idxflags, RSIndexResult *res,
-                 int singleWordMode);
+size_t InvertedIndex_ReadEntry(BufferReader *__restrict__ br, IndexFlags idxflags,
+                               RSIndexResult *res, int singleWordMode);
 
 size_t writeEntry(BufferWriter *bw, IndexFlags idxflags, t_docId docId, t_fieldMask fieldMask,
                   uint32_t freq, uint32_t offsetsSz, RSOffsetVector *offsets);
@@ -113,10 +113,8 @@ size_t InvertedIndex_WriteEntry(InvertedIndex *idx,
   return ret;
 }
 
-
-
-inline size_t InvertedIndex_ReadEntry(BufferReader *restrict br, IndexFlags idxflags,
-                                      RSIndexResult *res, int singleWordMode) {
+size_t InvertedIndex_ReadEntry(BufferReader *restrict br, IndexFlags idxflags, RSIndexResult *res,
+                               int singleWordMode) {
 
   size_t startPos = BufferReader_Offset(br);
 
@@ -174,7 +172,8 @@ int IndexBlock_Repair(IndexBlock *blk, DocTable *dt, IndexFlags flags) {
   int frags = 0;
 
   while (!BufferReader_AtEnd(&br)) {
-    size_t sz = readEntry(&br, flags & (Index_StoreFieldFlags | Index_StoreTermOffsets), res, 0);
+    size_t sz = InvertedIndex_ReadEntry(
+        &br, flags & (Index_StoreFieldFlags | Index_StoreTermOffsets), res, 0);
     lastReadId = res->docId += lastReadId;
     RSDocumentMetadata *md = DocTable_Get(dt, res->docId);
 

@@ -1,5 +1,6 @@
 #include "inverted.h"
 #include <rmalloc.h>
+#include <math.h>
 
 #define IR_CURRENT_BLOCK(ir) (ir->idx->blocks[ir->currentBlock])
 
@@ -10,7 +11,7 @@ void IR_advanceBlock(IndexReader *ir) {
 }
 
 /** Return 1 if we can read further from the index */
-inline int IR_HasNext(void *ctx) {
+int IR_HasNext(void *ctx) {
   IndexReader *ir = ctx;
   return !ir->atEnd;
 }
@@ -196,7 +197,7 @@ void IR_Free(IndexIterator *it) {
   rm_free(it);
 }
 
-inline t_docId IR_LastDocId(void *ctx) {
+t_docId IR_LastDocId(void *ctx) {
   return ((IndexReader *)ctx)->lastId;
 }
 

@@ -1,5 +1,5 @@
 #include "numeric.h"
-
+#include "union.h"
 /* Read the next entry from the iterator, into hit *e.
   *  Returns INDEXREAD_EOF if at the end */
 int NR_Read(void *ctx, RSIndexResult **r) {

@@ -9,5 +9,6 @@
 #include "optional.h"
 #include "numeric.h"
 #include "not.h"
+#include "geo.h"
 
 #endif

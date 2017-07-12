@@ -2,7 +2,7 @@
 #define __ID_FILTER_H__
 
 #include "redismodule.h"
-#include "index_iterator.h"
+#include "iterators/index_iterator.h"
 #include "doc_table.h"
 
 /* An IdFilter is a generic filter that limits the results of a query to a given set of ids. It is

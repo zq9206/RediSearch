@@ -3,7 +3,7 @@
 
 #include <stdlib.h>
 
-#include "index.h"
+#include "iterators/index_iterator.h"
 #include "numeric_filter.h"
 #include "numeric_index.h"
 #include "geo_index.h"

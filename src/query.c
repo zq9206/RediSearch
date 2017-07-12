@@ -4,7 +4,7 @@
 #include <sys/param.h>
 
 #include "geo_index.h"
-#include "index.h"
+#include "iterators/iterators.h"
 #include "query.h"
 #include "query_parser/parser.h"
 #include "redis_index.h"

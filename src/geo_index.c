@@ -1,7 +1,6 @@
 #include "geo_index.h"
 #include "rmutil/util.h"
 #include "rmalloc.h"
-#include "id_list.h"
 
 #define GEOINDEX_KEY_FMT "geo:%s/%s"
 
@@ -9,6 +8,7 @@ RedisModuleString *fmtGeoIndexKey(GeoIndex *gi) {
   return RedisModule_CreateStringPrintf(gi->ctx->redisCtx, GEOINDEX_KEY_FMT, gi->ctx->spec->name,
                                         gi->sp->name);
 }
+
 
 /* Add a docId to a geoindex key. Right now we just use redis' own GEOADD */
 int GeoIndex_AddStrings(GeoIndex *gi, t_docId docId, char *slon, char *slat) {
@@ -76,7 +76,9 @@ static int cmp_docids(const void *p1, const void *p2) {
   return (int)(*d1 - *d2);
 }
 
-t_docId *__gr_load(GeoIndex *gi, GeoFilter *gf, size_t *num) {
+/* Query the index with the filter, and return a sorted list of docIds from the result of the query.
+ * If an error occurred, we return NULL */
+t_docId *GeoIndex_Query(GeoIndex *gi, GeoFilter *gf, size_t *num) {
 
   *num = 0;
   /*GEORADIUS key longitude latitude radius m|km|ft|mi */
@@ -104,16 +106,4 @@ t_docId *__gr_load(GeoIndex *gi, GeoFilter *gf, size_t *num) {
 
   *num = sz;
   return docIds;
-}
-
-IndexIterator *NewGeoRangeIterator(GeoIndex *gi, GeoFilter *gf) {
-  size_t sz;
-  t_docId *docIds = __gr_load(gi, gf, &sz);
-  if (!docIds) {
-    return NULL;
-  }
-
-  IndexIterator *ret = NewIdListIterator(docIds, (t_offset)sz);
-  rm_free(docIds);
-  return ret;
 }

@@ -1,5 +1,7 @@
 #include "intersect.h"
 
+int II_Read(void *ctx, RSIndexResult **hit);
+int II_SkipTo(void *ctx, uint32_t docId, RSIndexResult **hit);
 RSIndexResult *II_Current(void *ctx) {
   return ((IntersectContext *)ctx)->current;
 }

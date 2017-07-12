@@ -9,7 +9,7 @@
 #include "version.h"
 #include "forward_index.h"
 #include "geo_index.h"
-#include "index.h"
+#include "iterators/iterators.h"
 #include "numeric_filter.h"
 #include "numeric_index.h"
 #include "query.h"

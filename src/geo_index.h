@@ -4,7 +4,7 @@
 #include "redisearch.h"
 #include "redismodule.h"
 #include "index_result.h"
-#include "index_iterator.h"
+
 #include "search_ctx.h"
 
 typedef struct geoIndex {
@@ -26,6 +26,8 @@ typedef struct geoFilter {
 /* Parse a geo filter from redis arguments. We assume the filter args start at argv[0] */
 int GeoFilter_Parse(GeoFilter *gf, RedisModuleString **argv, int argc);
 void GeoFilter_Free(GeoFilter *gf);
-IndexIterator *NewGeoRangeIterator(GeoIndex *gi, GeoFilter *gf);
 
+/* Query the index with the filter, and return a sorted list of docIds from the result of the query.
+ * If an error occurred, we return NULL */
+t_docId *GeoIndex_Query(GeoIndex *gi, GeoFilter *gf, size_t *num);
 #endif
