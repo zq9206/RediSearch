@@ -110,11 +110,11 @@ int UI_SkipTo(void *ctx, uint32_t docId, RSIndexResult **hit) {
   }
 
   AggregateResult_Reset(ui->current);
-  if (docId < ui->minDocId) {
-    AggregateResult_Reset((*hit));
-    (*hit)->docId = ui->minDocId;
-    return INDEXREAD_NOTFOUND;
-  }
+  // if (docId < ui->minDocId) {
+  //   AggregateResult_Reset((*hit));
+  //   (*hit)->docId = ui->minDocId;
+  //   return INDEXREAD_NOTFOUND;
+  // }
 
   int numActive = 0;
   int found = 0;

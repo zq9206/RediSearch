@@ -1,9 +1,9 @@
 #include "inverted_index.h"
 #include "math.h"
 #include "varint.h"
+#include <qint.h>
 #include <stdio.h>
 #include "rmalloc.h"
-#include "qint.h"
 
 #define INDEX_BLOCK_SIZE 100
 #define INDEX_BLOCK_INITIAL_CAP 2
@@ -113,8 +113,8 @@ size_t InvertedIndex_WriteEntry(InvertedIndex *idx,
   return ret;
 }
 
-size_t InvertedIndex_ReadEntry(BufferReader *restrict br, IndexFlags idxflags, RSIndexResult *res,
-                               int singleWordMode) {
+inline size_t InvertedIndex_ReadEntry(BufferReader *__restrict__ br, IndexFlags idxflags,
+                                      RSIndexResult *res, int singleWordMode) {
 
   size_t startPos = BufferReader_Offset(br);
 

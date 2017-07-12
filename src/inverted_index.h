@@ -36,6 +36,6 @@ int InvertedIndex_Repair(InvertedIndex *idx, DocTable *dt, uint32_t startBlock, 
  * Returns the number of bytes written to the index */
 size_t InvertedIndex_WriteEntry(InvertedIndex *idx, ForwardIndexEntry *ent);
 
-size_t InvertedIndex_ReadEntry(BufferReader *restrict br, IndexFlags idxflags, RSIndexResult *res,
-                               int singleWordMode);
+extern inline size_t InvertedIndex_ReadEntry(BufferReader *__restrict__ br, IndexFlags idxflags,
+                                             RSIndexResult *res, int singleWordMode);
 #endif

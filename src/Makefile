@@ -9,7 +9,7 @@ export CC
 export YACC
 
 # if DEBUG env var is set, we compile with "debug" cflags
-DEBUGFLAGS = -g -ggdb -O2
+DEBUGFLAGS = -g -ggdb -O2 -flto
 ifeq ($(DEBUG), 1)
 	DEBUGFLAGS = -g -ggdb -O0
 endif
@@ -21,10 +21,10 @@ CFLAGS += $(DEBUGFLAGS)
 
 # Compile flags for linux / osx
 ifeq ($(uname_S),Linux)
-	SHOBJ_LDFLAGS ?= -shared -Bsymbolic -Bsymbolic-functions -ldl -lpthread
+	SHOBJ_LDFLAGS ?= -shared -Bsymbolic -flto -Bsymbolic-functions -ldl -lpthread
 else
 	CFLAGS += -mmacosx-version-min=10.6
-	SHOBJ_LDFLAGS ?= -macosx_version_min 10.6 -bundle -undefined dynamic_lookup -ldl -lpthread
+	SHOBJ_LDFLAGS ?= -macosx_version_min 10.6 -flto -bundle -undefined dynamic_lookup -ldl -lpthread
 endif
 export CFLAGS
 
@@ -101,7 +101,7 @@ libredisearch.a: $(MODULE) version.h
 staticlib: libredisearch.a
 
 clean:
-	rm -fv *.o trie/*.o query_parser/*.o ext/*.o 
+	rm -fv *.o trie/*.o query_parser/*.o ext/*.o iterators/*.o
 
 distclean:
 	find . -type f \( -name '*.o' -o -name '*.a' -o -name '*.so' \) -delete -print

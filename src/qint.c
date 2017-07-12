@@ -1409,7 +1409,7 @@ qintConfig
 };
 
 /* Decode up to 4 integers into an array. Returns the amount of data consumed or 0 if len invalid */
-size_t qint_decode(BufferReader *__restrict__ br, uint32_t *__restrict__ arr, int len) {
+inline size_t qint_decode(BufferReader *__restrict__ br, uint32_t *__restrict__ arr, int len) {
   uint8_t *p = (uint8_t *)BufferReader_Current(br);
 
   // the most common case (4 1-byte ints) has a simpler flow.

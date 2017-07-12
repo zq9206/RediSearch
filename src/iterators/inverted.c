@@ -15,9 +15,9 @@ int IR_HasNext(void *ctx) {
   IndexReader *ir = ctx;
   return !ir->atEnd;
 }
-
+int IR_Read(void *ctx, RSIndexResult **e);
 /* Read an entry from an inverted index into RSIndexResult */
-int IR_Read(void *ctx, RSIndexResult **e) {
+inline int IR_Read(void *ctx, RSIndexResult **e) {
 
   IndexReader *ir = ctx;
 
@@ -58,8 +58,9 @@ eof:
 RSIndexResult *IR_Current(void *ctx) {
   return ((IndexReader *)ctx)->record;
 }
+int _isPos(InvertedIndex *idx, uint32_t i, t_docId docId);
 
-int _isPos(InvertedIndex *idx, uint32_t i, t_docId docId) {
+inline int _isPos(InvertedIndex *idx, uint32_t i, t_docId docId) {
   if (idx->blocks[i].firstId <= docId &&
       (i == idx->size - 1 || idx->blocks[i + 1].firstId > docId)) {
     return 1;
