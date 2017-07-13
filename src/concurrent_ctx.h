@@ -71,6 +71,8 @@ void ConcurrentSearch_CheckTimer(ConcurrentSearchCtx *ctx);
 /** Initialize and reset a concurrent search ctx */
 void ConcurrentSearchCtx_Init(RedisModuleCtx *rctx, ConcurrentSearchCtx *ctx);
 
+void ConcurrentSearchCtx_Free(ConcurrentSearchCtx *ctx);
+
 /** This macro is called by concurrent executors (currently the query only).
  * It checks if enough time has passed and releases the global lock if that is the case.
  */

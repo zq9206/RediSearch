@@ -64,9 +64,18 @@ void ConcurrentSearchCtx_Init(RedisModuleCtx *rctx, ConcurrentSearchCtx *ctx) {
   }
   ctx->ctx = rctx;
   ctx->ticker = 0;
+  ctx->numOpenKeys = 0;
+  ctx->openKeys = NULL;
   clock_gettime(CLOCK_MONOTONIC_RAW, &ctx->lastTime);
 }
 
+void ConcurrentSearchCtx_Free(ConcurrentSearchCtx *ctx) {
+  for (size_t i = 0; i < ctx->numOpenKeys; i++) {
+    RedisModule_CloseKey(ctx->openKeys[i].key);
+    RedisModule_FreeString(ctx->ctx, ctx->openKeys[i].keyName);
+  }
+  free(ctx->openKeys);
+}
 void ConcurrentSearch_AddKey(ConcurrentSearchCtx *ctx, RedisModuleKey *key, int openFlags,
                              RedisModuleString *keyName, ConcurrentReopenCallback cb,
                              void *privdata) {
