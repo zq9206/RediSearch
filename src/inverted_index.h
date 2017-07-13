@@ -28,6 +28,8 @@ typedef struct {
   uint32_t numDocs;
 } InvertedIndex;
 
+extern RedisModuleType *InvertedIndexType;
+
 InvertedIndex *NewInvertedIndex(IndexFlags flags, int initBlock);
 void InvertedIndex_Free(void *idx);
 int InvertedIndex_Repair(InvertedIndex *idx, DocTable *dt, uint32_t startBlock, int num);
@@ -73,6 +75,7 @@ size_t InvertedIndex_WriteEntry(InvertedIndex *idx, ForwardIndexEntry *ent);
 */
 IndexReader *NewIndexReader(InvertedIndex *idx, DocTable *docTable, t_fieldMask fieldMask,
                             IndexFlags flags, RSQueryTerm *term, int singleWordMode);
+void IndexReader_OnReopen(RedisModuleKey *k, void *privdata);
 /* free an index reader */
 void IR_Free(IndexReader *ir);
 

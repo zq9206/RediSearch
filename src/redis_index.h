@@ -5,13 +5,14 @@
 #include "index.h"
 #include "inverted_index.h"
 #include "search_ctx.h"
+#include "concurrent_ctx.h"
 #include "spec.h"
 
 /* Open an inverted index reader on a redis DMA string, for a specific term.
  * If singleWordMode is set to 1, we do not load the skip index, only the score index
  */
-IndexReader *Redis_OpenReader(RedisSearchCtx *ctx, RSToken *tok, DocTable *dt,
-                              int singleWordMode, t_fieldMask fieldMask);
+IndexReader *Redis_OpenReader(RedisSearchCtx *ctx, RSToken *tok, DocTable *dt, int singleWordMode,
+                              t_fieldMask fieldMask, ConcurrentSearchCtx *csx);
 
 InvertedIndex *Redis_OpenInvertedIndex(RedisSearchCtx *ctx, const char *term, size_t len,
                                        int write);
@@ -55,8 +56,6 @@ int Redis_StatsScanHandler(RedisModuleCtx *ctx, RedisModuleString *kn, void *opa
 RedisModuleString *fmtRedisTermKey(RedisSearchCtx *ctx, const char *term, size_t len);
 RedisModuleString *fmtRedisSkipIndexKey(RedisSearchCtx *ctx, const char *term, size_t len);
 RedisModuleString *fmtRedisNumericIndexKey(RedisSearchCtx *ctx, const char *field);
-
-extern RedisModuleType *InvertedIndexType;
 
 void InvertedIndex_Free(void *idx);
 void *InvertedIndex_RdbLoad(RedisModuleIO *rdb, int encver);

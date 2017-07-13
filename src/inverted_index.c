@@ -125,6 +125,16 @@ void indexReader_advanceBlock(IndexReader *ir) {
   ir->lastId = 0;  // IR_CURRENT_BLOCK(ir).firstId;
 }
 
+void IndexReader_OnReopen(RedisModuleKey *k, void *privdata) {
+
+  IndexReader *ir = privdata;
+
+  ir->idx = RedisModule_ModuleTypeGetValue(k);
+  size_t offset = ir->br.pos;
+  ir->br = NewBufferReader(IR_CURRENT_BLOCK(ir).data);
+  ir->br.pos = offset;
+}
+
 inline size_t readEntry(BufferReader *__restrict__ br, IndexFlags idxflags, RSIndexResult *res,
                         int singleWordMode) {
 
