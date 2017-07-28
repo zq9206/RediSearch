@@ -8,6 +8,7 @@
 #include "document.h"
 
 struct fwIdxMemBlock;
+struct khTable;
 
 typedef struct {
   t_docId docId;
@@ -23,8 +24,7 @@ typedef struct {
 #define FREQ_QUANTIZE_FACTOR 0xFFFF
 
 typedef struct {
-  // khash_t(32) * hits;
-  TrieMap *hits;
+  struct khTable *hits;
   t_docId docId;
   uint32_t totalFreq;
   uint32_t maxFreq;
@@ -40,13 +40,14 @@ typedef struct {
    * the other allocator is used for stemmed term entries. These allocators are
    * separate because this allows aligned reads when scanning entries.
    */
-  BlkAlloc entries;
   BlkAlloc terms;
 } ForwardIndex;
 
+struct bucketEntry;
 typedef struct {
-  ForwardIndex *idx;
-  TrieMapIterator *iter;
+  struct khTable *hits;
+  struct bucketEntry *curEnt;
+  uint32_t curBucketIdx;
 } ForwardIndexIterator;
 
 int forwardIndexTokenFunc(void *ctx, const Token *t);
