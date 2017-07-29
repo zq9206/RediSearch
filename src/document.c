@@ -261,9 +261,7 @@ void addTokensToIndex(indexingContext *ictx, RSAddDocumentCtx *aCtx) {
   ConcurrentSearchCtx_ResetClock(aCtx->thCtx, &aCtx->conc);
 
   while (entry != NULL) {
-    IndexSpec_AddTerm(ctx->spec, entry->term, entry->len);
-    RedisModuleKey *idxKey;
-    InvertedIndex *invidx = Redis_OpenInvertedIndexEx(ctx, entry->term, entry->len, 1, &idxKey);
+    InvertedIndex *invidx = Redis_OpenInvertedIndex(ctx, entry->term, entry->len, 1);
     size_t sz = InvertedIndex_WriteForwardIndexEntry(invidx, encoder, entry);
 
     /*******************************************
@@ -271,7 +269,6 @@ void addTokensToIndex(indexingContext *ictx, RSAddDocumentCtx *aCtx) {
     ********************************************/
     /* record the actual size consumption change */
     ctx->spec->stats.invertedSize += sz;
-
     ctx->spec->stats.numRecords++;
     /* increment the number of terms if this is a new term*/
 
@@ -280,9 +277,6 @@ void addTokensToIndex(indexingContext *ictx, RSAddDocumentCtx *aCtx) {
       ctx->spec->stats.offsetVecsSize += VVW_GetByteLength(entry->vw);
       ctx->spec->stats.offsetVecRecords += VVW_GetCount(entry->vw);
     }
-
-    // Redis_CloseWriter(w);
-    RedisModule_CloseKey(idxKey);
 
     entry = ForwardIndexIterator_Next(&it);
 
