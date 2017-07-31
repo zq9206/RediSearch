@@ -270,8 +270,8 @@ static InvertedIndex *openInvFromDB(RedisSearchCtx *ctx, const char *term, size_
 
 static void dumpInvertedIndex(const InvertedIndex *idx) {
   printf("Idx=%p\n", idx);
-  printf("  Deleted? %d\n", idx->deletedFromDb);
-  printf("  Shared? %d\n", idx->shared);
+  // printf("  Deleted? %d\n", idx->deletedFromDb);
+  // printf("  Shared? %d\n", idx->shared);
   printf("  Blocks: %d (arr @%p)\n", idx->size, idx->blocks);
   for (size_t ii = 0; ii < idx->size; ++ii) {
     printf("    Block #%lu @%p. NumDocs=%d\n", ii, idx->blocks[ii].data, idx->blocks[ii].numDocs);
@@ -287,35 +287,9 @@ static InvertedIndex *openInvRO(RedisSearchCtx *ctx, rune *rune, size_t runeLen,
 
   if (n && n->uPayload.opaque) {
     ret = n->uPayload.opaque;
-    if (!ret->deletedFromDb) {
-      return n->uPayload.opaque;
-    } else {
-      // Keep the entry for completion, but remove the payload
-      free(n->uPayload.opaque);
-      TrieNode_SetPayload(n, NULL, 0);
-    }
+    return ret;
   }
-
-  // Doesn't exist here? let's try the DB
-  RedisModuleKey *key = NULL;
-  ret = openInvFromDB(ctx, s, slen, &key, REDISMODULE_READ);
-
-  if (ret != NULL) {
-    assert(!ret->shared);
-    // Insert into the trie
-    if (!n) {
-      TrieNode_Add(&spec->terms->root, rune, runeLen, &n, 1, ADD_INCR);
-      // printf("Added %.*s\n", (int)slen, s);
-      spec->terms->size++;
-    }
-    TrieNode_SetPayload(n, ret, TRIENODE_OPAQUE_PAYLOAD);
-
-    ret->shared = 1;
-    ret->deletedFromDb = 0;
-  }
-
-  RedisModule_CloseKey(key);
-  return ret;
+  return NULL;
 }
 
 static InvertedIndex *openInvWR(RedisSearchCtx *ctx, rune *rune, size_t runeLen, const char *s,
@@ -333,29 +307,12 @@ static InvertedIndex *openInvWR(RedisSearchCtx *ctx, rune *rune, size_t runeLen,
 
   if (isNew == 0 && (ret = entry->uPayload.opaque)) {
     // Existing entry. No need for new pointer
-    if (ret->deletedFromDb) {
-      free(ret);
-      isNew = 1;
-    } else {
-      return ret;
-    }
+    return ret;
   }
 
   // We might have an entry in the DB
-  RedisModuleKey *key = NULL;
-  InvertedIndex *dbEnt = openInvFromDB(ctx, s, slen, &key, REDISMODULE_READ | REDISMODULE_WRITE);
-  if (dbEnt != NULL) {
-    ret = dbEnt;
-  } else {
-    ret = NewInvertedIndex(spec->flags, 1);
-    RedisModule_ModuleTypeSetValue(key, InvertedIndexType, ret);
-  }
-
+  ret = NewInvertedIndex(spec->flags, 1);
   TrieNode_SetPayload(entry, ret, TRIENODE_OPAQUE_PAYLOAD);
-
-  RedisModule_CloseKey(key);
-  ret->shared = 1;
-  ret->deletedFromDb = 0;
   return ret;
 }
 
